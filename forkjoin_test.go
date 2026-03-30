@@ -485,9 +485,9 @@ func TestPBTForkJoinAllBranchesRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		for i, c := range counts {
-			if c.Load() != 1 {
-				t.Fatalf("branch %d ran %d times, expected 1", i, c.Load())
+		for i := range counts {
+			if counts[i].Load() != 1 {
+				t.Fatalf("branch %d ran %d times, expected 1", i, counts[i].Load())
 			}
 		}
 	})
