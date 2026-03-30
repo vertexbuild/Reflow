@@ -279,10 +279,6 @@ go test -tags live -run TestLive -v -timeout 120s
 - LLMs are one kind of node. Use them where synthesis or ambiguity actually helps.
 - Use the cheapest node that can correctly advance the envelope.
 
-## Acknowledgments
-
-Reflow was inspired by [PocketFlow](https://github.com/The-Pocket/PocketFlow) from [Zachary Huang](https://github.com/zachary62) — which showed how simple a workflow graph can be when you strip it down to the right primitives.
-
 ## License
 
 MIT
