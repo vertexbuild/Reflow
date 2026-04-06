@@ -263,13 +263,13 @@ Both implement `Node[I, O]`. Both compose with everything.
 
 ## Contrib
 
-The core module has zero external dependencies. Extensions live in `contrib/` as separate modules.
+The core module has zero external dependencies. Extensions live in `` as separate modules.
 
 | Package | Import | What it does |
 |---|---|---|
-| [LLM](contrib/llm) | `github.com/vertexbuild/reflow/llm` | Provider interface + Ollama, Anthropic implementations |
-| [OpenTelemetry](contrib/otel) | `github.com/vertexbuild/reflow/otel` | Export Reflow traces as OTel spans |
-| [River Outbox](contrib/river/outbox) | `github.com/vertexbuild/reflow/river/outbox` | Transactional outbox for durable pipelines backed by Postgres + River |
+| [LLM](llm) | `github.com/vertexbuild/reflow/llm` | Provider interface + Ollama, Anthropic implementations |
+| [OpenTelemetry](otel) | `github.com/vertexbuild/reflow/otel` | Export Reflow traces as OTel spans |
+| [River Outbox](river/outbox) | `github.com/vertexbuild/reflow/river/outbox` | Transactional outbox for durable pipelines backed by Postgres + River |
 
 ```
 go get github.com/vertexbuild/reflow/llm
@@ -293,11 +293,11 @@ go run ./examples/support_agent/      # Compose, Tool, WithRetry — the graph i
 go run ./examples/intake_service/     # Full HTTP service with routing, tools, and streaming
 ```
 
-With a real LLM (requires `contrib/llm` and a running model):
+With a real LLM (requires `llm` and a running model):
 
 ```
 ollama pull llama3.2
-cd contrib/llm && go run ./examples/triage_agent/
+cd llm && go run ./examples/triage_agent/
 ```
 
 ---

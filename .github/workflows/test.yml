@@ -23,11 +23,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: contrib/llm/go.mod
+          go-version-file: llm/go.mod
       - run: go vet ./...
-        working-directory: contrib/llm
+        working-directory: llm
       - run: go test -race -count=1 ./...
-        working-directory: contrib/llm
+        working-directory: llm
 
   contrib-otel:
     runs-on: ubuntu-latest
@@ -35,11 +35,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: contrib/otel/go.mod
+          go-version-file: otel/go.mod
       - run: go vet ./...
-        working-directory: contrib/otel
+        working-directory: otel
       - run: go test -race -count=1 ./...
-        working-directory: contrib/otel
+        working-directory: otel
 
   contrib-river-outbox:
     runs-on: ubuntu-latest
@@ -47,8 +47,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: contrib/river/outbox/go.mod
+          go-version-file: river/outbox/go.mod
       - run: go vet ./...
-        working-directory: contrib/river/outbox
+        working-directory: river/outbox
       - run: go test -race -count=1 ./...
-        working-directory: contrib/river/outbox
+        working-directory: river/outbox

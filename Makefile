@@ -7,9 +7,9 @@ test:
 # Run vet on core and all contrib modules.
 vet:
 	go vet ./...
-	cd contrib/llm && go vet ./...
-	cd contrib/otel && go vet ./...
-	cd contrib/river/outbox && go vet ./...
+	cd llm && go vet ./...
+	cd otel && go vet ./...
+	cd river/outbox && go vet ./...
 
 # Run every example (intake_service is build-only since it starts a server).
 examples:
@@ -39,10 +39,10 @@ examples:
 release:
 	@test -n "$(VERSION)" || (echo "VERSION is required — usage: make release VERSION=0.1.0" && exit 1)
 	@echo "==> Preparing core v$(VERSION)"
-	cd contrib/llm && go mod edit -dropreplace=github.com/vertexbuild/reflow
-	cd contrib/otel && go mod edit -dropreplace=github.com/vertexbuild/reflow
-	cd contrib/river/outbox && go mod edit -dropreplace=github.com/vertexbuild/reflow
-	git add contrib/*/go.mod contrib/*/*/go.mod
+	cd llm && go mod edit -dropreplace=github.com/vertexbuild/reflow
+	cd otel && go mod edit -dropreplace=github.com/vertexbuild/reflow
+	cd river/outbox && go mod edit -dropreplace=github.com/vertexbuild/reflow
+	git add llm/go.mod otel/go.mod river/outbox/go.mod
 	git commit -m "Remove replace directives for v$(VERSION) release"
 	git tag v$(VERSION)
 	git push origin main v$(VERSION)
@@ -56,10 +56,10 @@ release:
 release-contrib:
 	@test -n "$(VERSION)" || (echo "VERSION is required — usage: make release-contrib VERSION=0.1.0" && exit 1)
 	@echo "==> Updating contrib modules to v$(VERSION)"
-	cd contrib/llm && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
-	cd contrib/otel && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
-	cd contrib/river/outbox && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
-	git add contrib/
+	cd llm && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
+	cd otel && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
+	cd river/outbox && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
+	git add llm/ otel/ river/
 	git commit -m "Update contrib modules to core v$(VERSION)"
 	git tag llm/v$(VERSION)
 	git tag otel/v$(VERSION)
@@ -71,9 +71,9 @@ release-contrib:
 
 # Restore replace directives for continued local development.
 dev-restore:
-	cd contrib/llm && go mod edit -replace=github.com/vertexbuild/reflow=../..
-	cd contrib/otel && go mod edit -replace=github.com/vertexbuild/reflow=../..
-	cd contrib/river/outbox && go mod edit -replace=github.com/vertexbuild/reflow=../../..
-	git add contrib/*/go.mod contrib/*/*/go.mod
+	cd llm && go mod edit -replace=github.com/vertexbuild/reflow=..
+	cd otel && go mod edit -replace=github.com/vertexbuild/reflow=..
+	cd river/outbox && go mod edit -replace=github.com/vertexbuild/reflow=../..
+	git add llm/go.mod otel/go.mod river/outbox/go.mod
 	git commit -m "Restore replace directives for development"
 	git push origin main
