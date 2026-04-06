@@ -6,7 +6,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/riverqueue/river v0.18.0
 	github.com/riverqueue/river/rivertype v0.18.0
-	github.com/vertexbuild/reflow v0.0.0
+	github.com/vertexbuild/reflow v0.1.0
 )
 
 require (

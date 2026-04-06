@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.27.1
-	github.com/vertexbuild/reflow v0.0.0
+	github.com/vertexbuild/reflow v0.1.0
 )
 
 require (

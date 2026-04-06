@@ -3,7 +3,7 @@ module github.com/vertexbuild/reflow/otel
 go 1.25.1
 
 require (
-	github.com/vertexbuild/reflow v0.0.0
+	github.com/vertexbuild/reflow v0.1.0
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/sdk v1.42.0
 	go.opentelemetry.io/otel/trace v1.42.0
@@ -16,6 +16,5 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/metric v1.42.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 )
