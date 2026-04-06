@@ -18,3 +18,5 @@ require (
 	go.opentelemetry.io/otel/metric v1.42.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 )
+
+replace github.com/vertexbuild/reflow => ..
