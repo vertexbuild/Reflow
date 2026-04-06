@@ -2,8 +2,7 @@ package reflow
 
 import (
 	"context"
-
-	"golang.org/x/sync/errgroup"
+	"sync"
 )
 
 // ForkJoin runs multiple nodes concurrently on the same input and merges
@@ -42,17 +41,29 @@ func (f *forkJoinNode[T]) Run(ctx context.Context, in Envelope[T]) (Envelope[T],
 func (f *forkJoinNode[T]) run(ctx context.Context, in Envelope[T]) (Envelope[T], error) {
 	results := make([]Envelope[T], len(f.nodes))
 
-	g, ctx := errgroup.WithContext(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	var once sync.Once
+	var firstErr error
+
 	for i, n := range f.nodes {
-		g.Go(func() error {
-			var err error
-			results[i], err = Run(ctx, n, in)
-			return err
-		})
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			out, err := Run(ctx, n, in)
+			if err != nil {
+				once.Do(func() { firstErr = err; cancel() })
+				return
+			}
+			results[i] = out
+		}()
 	}
 
-	if err := g.Wait(); err != nil {
-		return Envelope[T]{}, err
+	wg.Wait()
+	if firstErr != nil {
+		return Envelope[T]{}, firstErr
 	}
 
 	return f.merge(results), nil
