@@ -1,13 +1,13 @@
-// Example: Support Ticket Triage Agent
+// Example: Support Ticket Triage
 //
-// Agent: classify → extract → route (urgent/standard) → respond
+// Compose: classify → extract → route (urgent/standard) → respond
 //
-// A triage agent that takes raw support tickets, classifies their
+// A triage graph that takes raw support tickets, classifies their
 // priority and category, extracts key entities, routes based on
-// urgency, and generates a response — all using the Agent/Do pattern.
+// urgency, and generates a response — all using the Compose/Do pattern.
 //
 // Demonstrates:
-//   - Agent composition with reflow.Agent and reflow.Do
+//   - Graph composition with reflow.Compose and reflow.Do
 //   - Branching with plain Go (urgent vs standard path)
 //   - Mix of deterministic and LLM-backed nodes
 //   - WithRetry on LLM nodes for format enforcement
@@ -331,7 +331,7 @@ func (r RespondStandard) Settle(_ context.Context, _ reflow.Envelope[Extracted],
 	return out, true, nil
 }
 
-// --- Agent ---
+// --- Graph ---
 
 func buildTriageAgent(chat reflow.Tool[llm.Messages, llm.Response]) reflow.Node[Ticket, TriageResult] {
 	classify := reflow.WithRetry(ClassifyTicket{Chat: chat}, 3)
@@ -339,7 +339,7 @@ func buildTriageAgent(chat reflow.Tool[llm.Messages, llm.Response]) reflow.Node[
 	respondUrgent := reflow.WithRetry(RespondUrgent{Chat: chat}, 2)
 	respondStandard := reflow.WithRetry(RespondStandard{Chat: chat}, 2)
 
-	return reflow.Agent[Ticket, TriageResult]("triage",
+	return reflow.Compose[Ticket, TriageResult]("triage",
 		func(ctx context.Context, s *reflow.Steps, in reflow.Envelope[Ticket]) reflow.Envelope[TriageResult] {
 			classified := reflow.Do(s, ctx, classify, in)
 			extracted := reflow.Do(s, ctx, extract, classified)
@@ -416,7 +416,7 @@ func main() {
 
 	ctx := context.Background()
 
-	fmt.Println("Support Ticket Triage Agent")
+	fmt.Println("Support Ticket Triage")
 	fmt.Println("=" + strings.Repeat("=", 59))
 	fmt.Println()
 

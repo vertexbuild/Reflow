@@ -1,4 +1,7 @@
-// Package ollama provides an LLM provider backed by a local Ollama instance.
+// Package ollama provides an LLM provider backed by an Ollama instance.
+//
+// By default it connects to http://localhost:11434. Use [WithBaseURL]
+// for cloud-hosted or remote Ollama deployments.
 package ollama
 
 import (
@@ -12,21 +15,48 @@ import (
 	"github.com/vertexbuild/reflow/llm"
 )
 
-// Provider calls a local Ollama instance for chat completion.
+// Provider calls an Ollama instance for chat completion.
 type Provider struct {
 	BaseURL string
 	Model   string
 	Client  *http.Client
 }
 
+// Option configures a Provider.
+type Option func(*Provider)
+
+// WithBaseURL sets the Ollama API base URL. Use this for cloud-hosted
+// or remote deployments instead of the default localhost.
+//
+//	p := ollama.New("llama3.2", ollama.WithBaseURL("https://ollama.example.com"))
+func WithBaseURL(url string) Option {
+	return func(p *Provider) { p.BaseURL = url }
+}
+
+// WithClient sets a custom HTTP client. Use this for timeouts, proxies,
+// or authentication middleware.
+func WithClient(c *http.Client) Option {
+	return func(p *Provider) { p.Client = c }
+}
+
 // New creates an Ollama provider. Model should be a pulled model
-// like "llama3.2" or "mistral".
-func New(model string) *Provider {
-	return &Provider{
+// like "llama3.2" or "mistral". Defaults to http://localhost:11434.
+//
+//	// Local:
+//	p := ollama.New("llama3.2")
+//
+//	// Remote:
+//	p := ollama.New("llama3.2", ollama.WithBaseURL("https://ollama.example.com"))
+func New(model string, opts ...Option) *Provider {
+	p := &Provider{
 		BaseURL: "http://localhost:11434",
 		Model:   model,
 		Client:  http.DefaultClient,
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
 
 type chatRequest struct {
