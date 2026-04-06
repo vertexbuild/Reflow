@@ -108,7 +108,7 @@ func TestPipelineComposesWithAgent(t *testing.T) {
 
 	skill := Pipeline[int]("prep", addOne, double)
 
-	agent := Agent[int, int]("outer", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
+	agent := Compose[int, int]("outer", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
 		return Do(s, ctx, skill, in)
 	})
 

@@ -10,10 +10,10 @@ import "context"
 //
 //	triage := reflow.Pipeline[Ticket]("triage", normalize, classify, enrich, score)
 //
-// Use Agent when you need branching or type changes between steps.
+// Use Compose when you need branching or type changes between steps.
 //
 // Pipeline returns a Node[T, T] that composes with everything:
-// Chain, ForkJoin, WithRetry, Agent, Pool.
+// Chain, ForkJoin, WithRetry, Compose, Pool.
 func Pipeline[T any](name string, nodes ...Node[T, T]) Node[T, T] {
 	return &pipeline[T]{name: name, nodes: nodes}
 }

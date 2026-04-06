@@ -8,13 +8,13 @@ import (
 	"pgregory.net/rapid"
 )
 
-func TestAgentLinearPipeline(t *testing.T) {
+func TestComposeLinearPipeline(t *testing.T) {
 	double := &Func[int, int]{ActFn: Pass(func(n int) int { return n * 2 })}
 	addOne := &Func[int, int]{ActFn: Pass(func(n int) int { return n + 1 })}
 	square := &Func[int, int]{ActFn: Pass(func(n int) int { return n * n })}
 
 	// (1 * 2 + 1)^2 = 9
-	agent := Agent[int, int]("math", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
+	agent := Compose[int, int]("math", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
 		a := Do(s, ctx, double, in)
 		b := Do(s, ctx, addOne, a)
 		return Do(s, ctx, square, b)
@@ -29,7 +29,7 @@ func TestAgentLinearPipeline(t *testing.T) {
 	}
 }
 
-func TestAgentErrorShortCircuits(t *testing.T) {
+func TestComposeErrorShortCircuits(t *testing.T) {
 	called := make([]string, 0)
 
 	step1 := &Func[int, int]{ActFn: func(_ context.Context, in Envelope[int]) (Envelope[int], error) {
@@ -45,7 +45,7 @@ func TestAgentErrorShortCircuits(t *testing.T) {
 		return in, nil
 	}}
 
-	agent := Agent[int, int]("fails", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
+	agent := Compose[int, int]("fails", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
 		a := Do(s, ctx, step1, in)
 		b := Do(s, ctx, failing, a)
 		return Do(s, ctx, step3, b)
@@ -64,7 +64,7 @@ func TestAgentErrorShortCircuits(t *testing.T) {
 	}
 }
 
-func TestAgentPreservesHints(t *testing.T) {
+func TestComposePreservesHints(t *testing.T) {
 	annotate := &Func[string, string]{
 		ActFn: func(_ context.Context, in Envelope[string]) (Envelope[string], error) {
 			return in.WithHint("step.done", in.Value, ""), nil
@@ -77,7 +77,7 @@ func TestAgentPreservesHints(t *testing.T) {
 		},
 	}
 
-	agent := Agent[string, string]("hints", func(ctx context.Context, s *Steps, in Envelope[string]) Envelope[string] {
+	agent := Compose[string, string]("hints", func(ctx context.Context, s *Steps, in Envelope[string]) Envelope[string] {
 		a := Do(s, ctx, annotate, in)
 		return Do(s, ctx, upper, a)
 	})
@@ -97,12 +97,12 @@ func TestAgentPreservesHints(t *testing.T) {
 	}
 }
 
-func TestAgentBranching(t *testing.T) {
+func TestComposeBranching(t *testing.T) {
 	classify := &Func[int, int]{ActFn: Pass(func(n int) int { return n })}
 	doubleIt := &Func[int, int]{ActFn: Pass(func(n int) int { return n * 2 })}
 	tripleIt := &Func[int, int]{ActFn: Pass(func(n int) int { return n * 3 })}
 
-	agent := Agent[int, int]("branching", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
+	agent := Compose[int, int]("branching", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
 		classified := Do(s, ctx, classify, in)
 		if classified.Value > 5 {
 			return Do(s, ctx, tripleIt, classified)
@@ -129,7 +129,7 @@ func TestAgentBranching(t *testing.T) {
 	}
 }
 
-func TestAgentComposesWithWithRetry(t *testing.T) {
+func TestComposeComposesWithWithRetry(t *testing.T) {
 	attempts := 0
 	unreliable := &Func[int, int]{
 		ActFn: func(_ context.Context, in Envelope[int]) (Envelope[int], error) {
@@ -141,7 +141,7 @@ func TestAgentComposesWithWithRetry(t *testing.T) {
 		},
 	}
 
-	agent := Agent[int, int]("retryable", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
+	agent := Compose[int, int]("retryable", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
 		return Do(s, ctx, unreliable, in)
 	})
 
@@ -155,15 +155,15 @@ func TestAgentComposesWithWithRetry(t *testing.T) {
 	}
 }
 
-func TestAgentNested(t *testing.T) {
+func TestComposeNested(t *testing.T) {
 	double := &Func[int, int]{ActFn: Pass(func(n int) int { return n * 2 })}
 	addOne := &Func[int, int]{ActFn: Pass(func(n int) int { return n + 1 })}
 
-	inner := Agent[int, int]("inner", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
+	inner := Compose[int, int]("inner", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
 		return Do(s, ctx, double, in)
 	})
 
-	outer := Agent[int, int]("outer", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
+	outer := Compose[int, int]("outer", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
 		a := Do(s, ctx, inner, in)   // agent inside agent
 		return Do(s, ctx, addOne, a)
 	})
@@ -178,7 +178,7 @@ func TestAgentNested(t *testing.T) {
 	}
 }
 
-func TestDoStandaloneWithoutAgent(t *testing.T) {
+func TestDoStandaloneWithoutCompose(t *testing.T) {
 	double := &Func[int, int]{ActFn: Pass(func(n int) int { return n * 2 })}
 	addOne := &Func[int, int]{ActFn: Pass(func(n int) int { return n + 1 })}
 
@@ -199,7 +199,7 @@ func TestDoStandaloneWithoutAgent(t *testing.T) {
 
 // --- Property-based tests ---
 
-func TestPBTAgentMatchesManualChain(t *testing.T) {
+func TestPBTComposeMatchesManualChain(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		input := rapid.IntRange(-100, 100).Draw(t, "input")
 		addend := rapid.IntRange(1, 10).Draw(t, "addend")
@@ -208,8 +208,8 @@ func TestPBTAgentMatchesManualChain(t *testing.T) {
 		add := &Func[int, int]{ActFn: Pass(func(n int) int { return n + addend })}
 		mul := &Func[int, int]{ActFn: Pass(func(n int) int { return n * factor })}
 
-		// Agent approach
-		agent := Agent[int, int]("test", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
+		// Compose approach
+		agent := Compose[int, int]("test", func(ctx context.Context, s *Steps, in Envelope[int]) Envelope[int] {
 			a := Do(s, ctx, add, in)
 			return Do(s, ctx, mul, a)
 		})
