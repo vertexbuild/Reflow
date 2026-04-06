@@ -1,28 +1,58 @@
 # Reflow
 
-Concurrent, streaming workflow graphs for Go with structured handoffs — for deterministic pipelines, agentic workflows, or both.
+Typed workflow graphs for Go — deterministic pipelines, streaming fan-outs, or agentic compositions with structured handoffs.
 
 ```
 go get github.com/vertexbuild/reflow
 ```
 
-Reflow passes an **envelope** between nodes: the current value plus structured context gathered along the way. Each node can inspect the situation, act on it, and settle the result into a prepared handoff for whatever comes next.
+Zero core dependencies. The entire public API fits on one screen.
+
+---
+
+## The graph is the control plane
+
+**You write the graph.** The graph encodes the correct sequence of operations — not the model. Each node does one thing well and settles a prepared handoff for whatever comes next. The LLM, or any external tool, receives structured context and focuses on the one task it's best at.
+
+```go
+support := reflow.Compose[Ticket, Draft]("support",
+    func(ctx context.Context, s *reflow.Steps, in reflow.Envelope[Ticket]) reflow.Envelope[Draft] {
+        triaged  := reflow.Do(s, ctx, triage, in)
+        enriched := reflow.Do(s, ctx, enrich, triaged)   // ForkJoin: account + history
+        return reflow.Do(s, ctx, generate, enriched)      // Tool call with retry
+    },
+)
+
+out, err := reflow.Run(ctx, support, reflow.NewEnvelope(ticket))
+```
 
 ```
-$ go run ./examples/threat_intel/
+$ go run ./examples/support_agent/
 
-Querying sources concurrently...
-[Behavior]    verdict=malicious   confidence=0.94  (Port scanning on 47 ports in last 24h)
-[AbuseDB]     verdict=malicious   confidence=0.88  (IP in 3 blocklists, SSH brute force)
-[GeoRep]      verdict=suspicious  confidence=0.72  (Hosting provider, elevated threat region)
+Ticket:   TKT-4401
+Customer: Northwind Health
+Intent:   technical
+Priority: high
 
-VERDICT:    MALICIOUS
-CONFIDENCE: 83%
+Response: I can see the outage you're reporting. Our team is actively
+investigating and I've linked your ticket to the incident.
 
-Sources: 3 queried | Hints: 12 accumulated | Trace: 12 steps
+Tool calls: 1
+Hints:      5
+Trace:      14 steps
 ```
 
-Three sources ran concurrently. Each settled its own verdict, confidence, and tags as hints. The LLM synthesized from the accumulated context, not from scratch. 12 hints, 12 trace steps, one envelope.
+Three deterministic nodes prepared the context. The tool call got a structured, validated envelope — not "figure out what the user wants and also look up their account and also write a response." The graph enforced the right structure. The tool did the one thing it's best at.
+
+Swap the tool implementation and the graph doesn't change:
+
+```go
+// Simulated — for tests and examples:
+generate := reflow.WithRetry(GenerateResponse{LLM: FakeLLM{}}, 3)
+
+// Real — same graph, real model:
+generate := reflow.WithRetry(GenerateResponse{LLM: llm.AsTool(provider, "llm")}, 3)
+```
 
 ---
 
@@ -34,7 +64,7 @@ Every node has three phases:
 
 **Act** — Do the work. Parse, transform, call an API, run inference.
 
-**Settle** — Prepare the handoff. Attach hints, record what happened, give the next node a head start.
+**Settle** — Prepare the handoff. Attach hints, record what happened, decide if the result is ready.
 
 ```go
 type Node[I, O any] interface {
@@ -44,92 +74,122 @@ type Node[I, O any] interface {
 }
 ```
 
-A node doesn't just return a result. It settles that result into a better starting point for whatever comes next.
+Settle returns `done=true` to pass the result forward, or `done=false` with hints to signal that the result isn't ready. WithRetry feeds those hints back — each pass gets better context, not a blind re-roll.
+
+The **envelope** carries the current value plus structured context that accumulates through the graph: hints (guidance for downstream nodes), trace steps (execution history), and tags (metadata).
 
 ---
 
-## Where it fits
+## Composition
 
-### Data pipelines
-
-Chain deterministic transforms. Each node validates, annotates, and prepares the envelope for the next. Errors become hints, not crashes.
+### Compose — multi-step graphs with plain Go
 
 ```go
-pipeline := reflow.Chain(parse, reflow.Chain(validate, enrich))
-out, err := reflow.Run(ctx, pipeline, reflow.NewEnvelope(rawData))
+intake := reflow.Compose[Request, Resolution]("intake",
+    func(ctx context.Context, s *reflow.Steps, in reflow.Envelope[Request]) reflow.Envelope[Resolution] {
+        triaged := reflow.Do(s, ctx, triage, in)
+        switch triaged.Value.Department {
+        case "billing":
+            return reflow.Do(s, ctx, billingDept, triaged)
+        default:
+            return reflow.Do(s, ctx, escalation, triaged)
+        }
+    },
+)
 ```
 
-### Event and log processing
+Branching, loops, conditional logic — it's just Go. Each `Do` call runs a node through resolve → act → settle. If any step fails, subsequent calls are no-ops (like `bufio.Scanner`).
 
-Stream events line by line. Settle filters noise inline — no buffering the whole file, no separate filter stage.
+### Chain — sequential, type-transforming
 
 ```go
-events, err := reflow.Collect(reflow.Stream(ctx, analyzer, reflow.NewEnvelope(rawLog)))
+pipeline := reflow.Chain(parse, reflow.Chain(repair, validate))
 ```
 
-```
-Streamed 15 lines → 9 events (6 normal traffic dropped)
+> [!TIP]
+> Chain works well for 2-3 nodes. For longer sequences, use Compose — it reads top-to-bottom and supports branching.
 
-  CRITICAL:
-    203.0.113.42    GET     /api/users?id=1'+OR+'1'='1  → 400  (SQL injection attempt)
-    203.0.113.42    GET     /../../etc/passwd            → 400  (path traversal attempt)
-
-  WARNING:
-    10.0.0.55       GET     /wp-admin/login.php          → 404  (reconnaissance scan)
-    10.0.0.55       GET     /.env                        → 403  (reconnaissance scan)
-```
-
-### Webhook and queue processing
-
-Bounded concurrency over a stream. Pool processes N items at a time, preserves order, respects backpressure.
+### Pipeline — sequential, same type
 
 ```go
-source := reflow.Stream(ctx, splitter, reflow.NewEnvelope(batch))
-results, err := reflow.Collect(reflow.Pool(ctx, processor, source, 20))
+triage := reflow.Pipeline[Ticket]("triage", normalize, classify, enrich, score)
 ```
 
-### LLM-assisted workflows
-
-Use the cheapest node that can correctly advance the envelope. Deterministic nodes handle 95% of the work. The LLM comes in where synthesis or ambiguity actually helps — and it gets prepared context, not a raw dump.
+### ForkJoin — concurrent fan-out, merge results
 
 ```go
-enrich   := reflow.ForkJoin(merge, sourceA, sourceB, sourceC)
-analyze  := reflow.WithRetry(SynthesizeWithLLM{LLM: provider}, 3)
-pipeline := reflow.Chain(enrich, analyze)
+enrich := reflow.ForkJoin(merge, lookupAccount, lookupHistory, lookupUsage)
 ```
 
-The LLM gets better guidance on every retry. Hints accumulate — not a blind re-roll.
+### WithRetry — settle loop with hint feedback
+
+```go
+classify := reflow.WithRetry(ClassifyIntent{LLM: provider}, 3)
+```
+
+Settle returns `done=false` with hints. WithRetry feeds those hints back into the next iteration.
 
 ---
 
-## Agents: correctness by construction
+## Streaming
 
-Most agent frameworks give an LLM a bag of tools and hope it calls them in the right order. The model is the control plane. When it guesses wrong, you add more instructions and hope.
-
-Reflow inverts this. The graph is the control plane. It encodes the correct sequence of operations, and the LLM is one node that does what it's good at — synthesis, ambiguity resolution, explanation — with a prepared envelope that tells it exactly what to focus on.
+`StreamNode` yields envelopes one at a time via `iter.Seq2`. Settle runs per-item — it can filter, annotate, or reject inline.
 
 ```go
-// The graph enforces the right structure. The LLM doesn't decide what to do next.
-// It receives a settled envelope and does the one thing it's best at.
-classify  := reflow.WithRetry(ClassifyIntent{LLM: provider}, 3)
-extract   := ExtractEntities{}   // deterministic
-validate  := ValidateSchema{}    // deterministic
-enrich    := FetchContext{DB: db} // deterministic
-respond   := reflow.WithRetry(GenerateResponse{LLM: provider}, 2)
-
-agent := reflow.Chain(classify,
-    reflow.Chain(extract,
-        reflow.Chain(validate,
-            reflow.Chain(enrich, respond))))
+stream := reflow.Stream(ctx, triageInbox, reflow.NewEnvelope(inbox))
+urgent, standard := reflow.Split(stream, isUrgent)
+urgentLane := reflow.Pool(ctx, incidentDesk, urgent, 2)
+standardLane := reflow.Pool(ctx, supportDesk, standard, 8)
+results, err := reflow.Collect(reflow.Merge(urgentLane, standardLane))
 ```
 
-Each node prepares the next. The classify node settles intent and confidence. Extract reads those hints. Validate checks the schema. Enrich fetches relevant context. By the time the response node runs, its envelope contains a structured, validated, enriched handoff — not "figure out what the user wants and also look up their account and also check the policy and also write a response."
+Pull-based. Backpressure is free — stop ranging and the producer stops. Pool preserves emission order while bounding concurrency.
 
-The graph is the agent. The LLM is a cell within it.
+### Batch processing
 
-You don't need to instruct the model to be correct. You construct a pipeline where incorrect results don't propagate — Settle catches them, attaches feedback hints, and the retry loop refines until it settles.
+Nothing in reflow processes batches directly. Instead, a `StreamNode` splits a batch into individual items, and `Pool` handles bounded concurrency.
 
-That's correctness by construction, not instruction.
+> [!TIP]
+> The type signature tells the story: `StreamNode[[]Ticket, Ticket]` makes the batch-to-individual transition explicit. Pool processes each item through a regular `Node[Ticket, Result]`.
+
+```go
+// StreamNode Act: yield one ticket at a time from the batch
+func (e EmitTickets) Act(_ context.Context, in reflow.Envelope[[]Ticket]) iter.Seq2[reflow.Envelope[Ticket], error] {
+    return func(yield func(reflow.Envelope[Ticket], error) bool) {
+        for _, t := range in.Value {
+            if !yield(reflow.Map(in, t), nil) {
+                return
+            }
+        }
+    }
+}
+
+// Stream → Pool → Collect
+source := reflow.Stream(ctx, EmitTickets{}, reflow.NewEnvelope(tickets))
+results, err := reflow.Collect(reflow.Pool(ctx, processTicket, source, 10))
+```
+
+`Stream` splits. `Pool` bounds concurrency. `Collect` reassembles. Add `Split` and `Merge` to route items into different lanes before pooling.
+
+---
+
+## Tools and tracing
+
+The `Tool[I, O]` interface wraps any external call — LLM, database, API — with automatic timing and trace recording:
+
+```go
+type Tool[I, O any] interface {
+    Name() string
+    Call(context.Context, I) (O, error)
+}
+```
+
+```go
+resp, step, err := reflow.Use(ctx, chat, messages)
+out = out.WithStep(step)
+```
+
+Every tool call lands in the envelope's trace with name, duration, and status. Print `out.Meta.Trace` and see the full execution story.
 
 ---
 
@@ -142,12 +202,17 @@ reflow.Stream(ctx, streamNode, envelope)                // pull-based iterator
 reflow.Collect(stream)                                  // drain stream to slice
 
 // Compose
-reflow.Chain(ab, bc)                                    // sequential
+reflow.Compose(name, func)                              // multi-step graph as code
+reflow.Chain(ab, bc)                                    // sequential pair
+reflow.Pipeline(name, nodes...)                         // sequential, same type
 reflow.ForkJoin(merge, nodes...)                        // concurrent fan-out
 reflow.Pool(ctx, node, source, concurrency)             // bounded parallel stream
+reflow.Split(stream, pred)                              // two-lane routing
+reflow.Merge(streams...)                                // interleave stream results
 reflow.WithRetry(node, maxIter)                         // settle loop with feedback
 
 // Helpers
+reflow.Map(in, newValue)                                // carry meta to a new type
 reflow.Lift(func(I) (O, error))                         // wrap a function as Act
 reflow.Pass(func(I) O)                                  // wrap infallible function
 reflow.NewRing[T](capacity)                             // sliding window buffer
@@ -157,8 +222,6 @@ reflow.Use(ctx, tool, input)                            // call + trace
 reflow.UseRetry(ctx, tool, input, attempts)             // call + retry + trace
 reflow.Invoke(ctx, name, func)                          // ad-hoc call + trace
 ```
-
-Zero core dependencies. The entire public API fits on one screen.
 
 ---
 
@@ -175,7 +238,7 @@ func (ParseJSON) Resolve(_ context.Context, in reflow.Envelope[string]) (reflow.
 
 func (ParseJSON) Act(_ context.Context, in reflow.Envelope[string]) (reflow.Envelope[JSON], error) {
     var v JSON
-    return reflow.Envelope[JSON]{Value: v, Meta: in.Meta}, json.Unmarshal([]byte(in.Value), &v)
+    return reflow.Map(in, v), json.Unmarshal([]byte(in.Value), &v)
 }
 
 func (ParseJSON) Settle(_ context.Context, _ reflow.Envelope[string], out reflow.Envelope[JSON], actErr error) (reflow.Envelope[JSON], bool, error) {
@@ -194,43 +257,7 @@ double := &reflow.Func[int, int]{
 }
 ```
 
-Both implement `Node[I, O]`. Both work with Chain, ForkJoin, WithRetry, Pool.
-
----
-
-## Streaming
-
-`StreamNode` yields envelopes one at a time via `iter.Seq2`. Settle runs per-item — it can filter, annotate, or reject inline.
-
-```go
-type StreamNode[I, O any] interface {
-    Resolve(context.Context, Envelope[I]) (Envelope[I], error)
-    Act(context.Context, Envelope[I]) iter.Seq2[Envelope[O], error]
-    Settle(ctx context.Context, in Envelope[I], out Envelope[O], actErr error) (Envelope[O], bool, error)
-}
-```
-
-Pull-based. Backpressure is free — stop ranging and the producer stops. Bridge back to batch with `Collect`. Process with bounded concurrency using `Pool`.
-
----
-
-## Tools and tracing
-
-The `Tool[I, O]` interface wraps any external call with automatic timing and trace recording:
-
-```go
-type Tool[I, O any] interface {
-    Name() string
-    Call(context.Context, I) (O, error)
-}
-```
-
-```go
-resp, step, err := reflow.Use(ctx, chat, messages)
-out = out.WithStep(step)
-```
-
-Every tool call — LLM, database, API — lands in the envelope's trace with name, duration, and status. Print `out.Meta.Trace` and see the full execution story.
+Both implement `Node[I, O]`. Both compose with everything.
 
 ---
 
@@ -241,7 +268,7 @@ The core module has zero external dependencies. Extensions live in `contrib/` as
 | Package | Import | What it does |
 |---|---|---|
 | [LLM](contrib/llm) | `github.com/vertexbuild/reflow/llm` | Provider interface + Ollama, Anthropic implementations |
-| [OpenTelemetry](contrib/otel) | `github.com/vertexbuild/reflow/otel` | Export Reflow traces as OTel spans. Plug into Jaeger, Datadog, Honeycomb |
+| [OpenTelemetry](contrib/otel) | `github.com/vertexbuild/reflow/otel` | Export Reflow traces as OTel spans |
 | [River Outbox](contrib/river/outbox) | `github.com/vertexbuild/reflow/river/outbox` | Transactional outbox for durable pipelines backed by Postgres + River |
 
 ```
@@ -254,20 +281,23 @@ go get github.com/vertexbuild/reflow/river/outbox
 
 ## Examples
 
+Each example is self-contained and demonstrates different composition patterns.
+
 ```
-go run ./examples/threat_intel/       # concurrent fan-out → merge → LLM synthesis
-go run ./examples/log_stream/         # streaming access log analysis + classification
-go run ./examples/document_analyzer/  # extract → validate → LLM summarize
-go run ./examples/malformed_json/     # parse → hint → targeted repair → validate
-go run ./examples/csv_validation/     # parse → validate → route by confidence
-go run ./examples/log_classify/       # detect known patterns → hint unknowns → analyze
+go run ./examples/malformed_json/     # Chain, hints — parse fails, repair reads hints to fix it
+go run ./examples/review_loop/        # WithRetry — settle rejects, hints refine the next attempt
+go run ./examples/pipeline_ring/      # Pipeline, Ring — sliding window anomaly detection
+go run ./examples/stream_router/      # Stream, Split, Pool, Merge — triage inbox to specialist lanes
+go run ./examples/fanout_consensus/   # Compose, ForkJoin — concurrent evidence, conditional explanation
+go run ./examples/support_agent/      # Compose, Tool, WithRetry — the graph is the control plane
+go run ./examples/intake_service/     # Full HTTP service with routing, tools, and streaming
 ```
 
-Integration tests against Ollama:
+With a real LLM (requires `contrib/llm` and a running model):
 
 ```
 ollama pull llama3.2
-go test -tags live -run TestLive -v -timeout 120s
+cd contrib/llm && go run ./examples/triage_agent/
 ```
 
 ---
@@ -276,7 +306,7 @@ go test -tags live -run TestLive -v -timeout 120s
 
 - Each node settles context that makes downstream work easier.
 - Hints carry nuance. Not just "this failed" — "this is suspect, here's why, look here."
-- LLMs are one kind of node. Use them where synthesis or ambiguity actually helps.
+- LLMs are one kind of tool. Use them where synthesis or ambiguity actually helps.
 - Use the cheapest node that can correctly advance the envelope.
 
 ## License
