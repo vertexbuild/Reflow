@@ -144,6 +144,55 @@ func TestCarryMetaPreservesTrace(t *testing.T) {
 	}
 }
 
+// --- Map ---
+
+func TestMapCrossType(t *testing.T) {
+	in := NewEnvelope("hello").
+		WithHint("h", "msg", "span").
+		WithTag("k", "v")
+	in.Meta.Trace = append(in.Meta.Trace, Step{Phase: "resolve", Status: "ok"})
+
+	out := Map(in, 42)
+	if out.Value != 42 {
+		t.Fatalf("expected 42, got %d", out.Value)
+	}
+	if len(out.Meta.Hints) != 1 || out.Meta.Hints[0].Code != "h" {
+		t.Fatal("hints should be carried")
+	}
+	if out.Meta.Tags["k"] != "v" {
+		t.Fatal("tags should be carried")
+	}
+	if len(out.Meta.Trace) != 1 {
+		t.Fatal("trace should be carried")
+	}
+}
+
+func TestMapWithTagDoesNotMutateSource(t *testing.T) {
+	in := NewEnvelope("original").WithTag("a", "1")
+	out := Map(in, 99).WithTag("b", "2")
+
+	if _, ok := in.Meta.Tags["b"]; ok {
+		t.Fatal("WithTag on mapped envelope should not mutate source")
+	}
+	if out.Meta.Tags["b"] != "2" {
+		t.Fatal("mapped envelope should have the new tag")
+	}
+}
+
+func TestMapStructToStruct(t *testing.T) {
+	type A struct{ Name string }
+	type B struct{ Count int }
+
+	in := NewEnvelope(A{Name: "alice"}).WithHint("src", "a", "")
+	out := Map(in, B{Count: 5})
+	if out.Value.Count != 5 {
+		t.Fatalf("expected 5, got %d", out.Value.Count)
+	}
+	if len(out.Meta.Hints) != 1 {
+		t.Fatal("hints should be carried across struct types")
+	}
+}
+
 // --- Property-based tests ---
 
 func TestPBTMetaPreservation(t *testing.T) {

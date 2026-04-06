@@ -95,6 +95,17 @@ func (e Envelope[T]) CarryMeta(v T) Envelope[T] {
 	return Envelope[T]{Value: v, Meta: e.Meta}
 }
 
+// Map creates an envelope of a new type carrying the source envelope's metadata.
+// Use this when a node's Act transforms the value into a different type.
+//
+//	func (n MyNode) Act(_ context.Context, in reflow.Envelope[Request]) (reflow.Envelope[Response], error) {
+//	    resp := process(in.Value)
+//	    return reflow.Map(in, resp), nil
+//	}
+func Map[I, O any](in Envelope[I], v O) Envelope[O] {
+	return Envelope[O]{Value: v, Meta: in.Meta}
+}
+
 func cloneHints(hints []Hint) []Hint {
 	if hints == nil {
 		return nil
