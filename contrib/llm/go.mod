@@ -15,5 +15,3 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 )
-
-replace github.com/vertexbuild/reflow => ../..
