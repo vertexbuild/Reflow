@@ -261,15 +261,15 @@ Both implement `Node[I, O]`. Both compose with everything.
 
 ---
 
-## Contrib
+## Extensions
 
-The core module has zero external dependencies. Extensions live in `` as separate modules.
+The core module has zero external dependencies. Optional extensions are separate modules in the same repo.
 
-| Package | Import | What it does |
-|---|---|---|
-| [LLM](llm) | `github.com/vertexbuild/reflow/llm` | Provider interface + Ollama, Anthropic implementations |
-| [OpenTelemetry](otel) | `github.com/vertexbuild/reflow/otel` | Export Reflow traces as OTel spans |
-| [River Outbox](river/outbox) | `github.com/vertexbuild/reflow/river/outbox` | Transactional outbox for durable pipelines backed by Postgres + River |
+| Module | What it does |
+|---|---|
+| [`reflow/llm`](llm) | Provider interface + Ollama and Anthropic implementations |
+| [`reflow/otel`](otel) | Export Reflow traces as OpenTelemetry spans |
+| [`reflow/river/outbox`](river/outbox) | Transactional outbox for durable pipelines backed by Postgres + River |
 
 ```
 go get github.com/vertexbuild/reflow/llm
