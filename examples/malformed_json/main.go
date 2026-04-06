@@ -29,7 +29,7 @@ func (ParseJSON) Resolve(_ context.Context, in reflow.Envelope[string]) (reflow.
 func (ParseJSON) Act(_ context.Context, in reflow.Envelope[string]) (reflow.Envelope[JSON], error) {
 	var v JSON
 	err := json.Unmarshal([]byte(in.Value), &v)
-	return reflow.Envelope[JSON]{Value: v, Meta: in.Meta}, err
+	return reflow.Map(in, v), err
 }
 
 func (ParseJSON) Settle(_ context.Context, in reflow.Envelope[string], out reflow.Envelope[JSON], actErr error) (reflow.Envelope[JSON], bool, error) {
@@ -77,7 +77,7 @@ func (RepairJSON) Act(_ context.Context, in reflow.Envelope[JSON]) (reflow.Envel
 	if err := json.Unmarshal([]byte(repaired), &v); err != nil {
 		return in, fmt.Errorf("repair failed: %w", err)
 	}
-	return reflow.Envelope[JSON]{Value: v, Meta: in.Meta}, nil
+	return reflow.Map(in, v), nil
 }
 
 func (RepairJSON) Settle(_ context.Context, _ reflow.Envelope[JSON], out reflow.Envelope[JSON], actErr error) (reflow.Envelope[JSON], bool, error) {
