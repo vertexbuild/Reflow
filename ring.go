@@ -1,5 +1,7 @@
 package reflow
 
+import "sync"
+
 // Ring is a fixed-size sliding window buffer. It gives streaming nodes
 // cheap access to recent history for pattern detection, frequency counting,
 // or windowed aggregation — without holding the entire stream in memory.
@@ -107,4 +109,91 @@ func (r *Ring[T]) Clear() {
 	}
 	r.pos = 0
 	r.count = 0
+}
+
+// SafeRing is a concurrency-safe version of Ring, protected by a
+// read-write mutex. Use this when a ring is shared across goroutines,
+// such as a shared accumulator in pooled workers.
+//
+//	ring := reflow.NewSafeRing[Event](100)
+//
+//	// Safe to call from multiple goroutines:
+//	ring.Push(event)
+//	recent := ring.Slice()
+type SafeRing[T any] struct {
+	mu sync.RWMutex
+	r  Ring[T]
+}
+
+// NewSafeRing creates a concurrency-safe ring buffer that holds at most n items.
+func NewSafeRing[T any](n int) *SafeRing[T] {
+	if n <= 0 {
+		n = 1
+	}
+	return &SafeRing[T]{
+		r: Ring[T]{
+			buf:  make([]T, n),
+			size: n,
+		},
+	}
+}
+
+// Push adds an item to the ring, overwriting the oldest if full.
+func (s *SafeRing[T]) Push(v T) {
+	s.mu.Lock()
+	s.r.Push(v)
+	s.mu.Unlock()
+}
+
+// Len returns the number of items currently in the ring.
+func (s *SafeRing[T]) Len() int {
+	s.mu.RLock()
+	n := s.r.Len()
+	s.mu.RUnlock()
+	return n
+}
+
+// Cap returns the maximum number of items the ring can hold.
+func (s *SafeRing[T]) Cap() int {
+	return s.r.Cap() // immutable after construction
+}
+
+// Full returns true if the ring is at capacity.
+func (s *SafeRing[T]) Full() bool {
+	s.mu.RLock()
+	f := s.r.Full()
+	s.mu.RUnlock()
+	return f
+}
+
+// Slice returns the contents in chronological order. The returned slice is a copy.
+func (s *SafeRing[T]) Slice() []T {
+	s.mu.RLock()
+	out := s.r.Slice()
+	s.mu.RUnlock()
+	return out
+}
+
+// Peek returns the most recently pushed item and true, or the zero value and false if empty.
+func (s *SafeRing[T]) Peek() (T, bool) {
+	s.mu.RLock()
+	v, ok := s.r.Peek()
+	s.mu.RUnlock()
+	return v, ok
+}
+
+// Each iterates over the ring contents in chronological order.
+// The callback receives each item; return false to stop early.
+// The ring is read-locked for the duration of the iteration.
+func (s *SafeRing[T]) Each(fn func(T) bool) {
+	s.mu.RLock()
+	s.r.Each(fn)
+	s.mu.RUnlock()
+}
+
+// Clear resets the ring to empty without reallocating.
+func (s *SafeRing[T]) Clear() {
+	s.mu.Lock()
+	s.r.Clear()
+	s.mu.Unlock()
 }

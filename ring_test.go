@@ -251,6 +251,121 @@ func TestPBTRingSliceMatchesEach(t *testing.T) {
 	})
 }
 
+// --- SafeRing ---
+
+func TestSafeRingBasic(t *testing.T) {
+	r := NewSafeRing[int](3)
+
+	r.Push(1)
+	r.Push(2)
+
+	if r.Len() != 2 {
+		t.Fatalf("expected len 2, got %d", r.Len())
+	}
+	if r.Cap() != 3 {
+		t.Fatalf("expected cap 3, got %d", r.Cap())
+	}
+
+	got := r.Slice()
+	want := []int{1, 2}
+	if !sliceEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestSafeRingOverwrite(t *testing.T) {
+	r := NewSafeRing[int](3)
+	r.Push(1)
+	r.Push(2)
+	r.Push(3)
+	r.Push(4)
+	r.Push(5)
+
+	if !r.Full() {
+		t.Fatal("expected full")
+	}
+
+	got := r.Slice()
+	want := []int{3, 4, 5}
+	if !sliceEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestSafeRingPeek(t *testing.T) {
+	r := NewSafeRing[string](5)
+
+	_, ok := r.Peek()
+	if ok {
+		t.Fatal("expected no peek on empty ring")
+	}
+
+	r.Push("a")
+	r.Push("b")
+	v, ok := r.Peek()
+	if !ok || v != "b" {
+		t.Fatalf("expected peek 'b', got %q", v)
+	}
+}
+
+func TestSafeRingEachAndClear(t *testing.T) {
+	r := NewSafeRing[int](4)
+	r.Push(10)
+	r.Push(20)
+	r.Push(30)
+
+	var collected []int
+	r.Each(func(v int) bool {
+		collected = append(collected, v)
+		return true
+	})
+	want := []int{10, 20, 30}
+	if !sliceEqual(collected, want) {
+		t.Fatalf("got %v, want %v", collected, want)
+	}
+
+	r.Clear()
+	if r.Len() != 0 {
+		t.Fatalf("expected len 0 after clear, got %d", r.Len())
+	}
+}
+
+func TestSafeRingConcurrent(t *testing.T) {
+	r := NewSafeRing[int](100)
+	done := make(chan struct{})
+
+	// Writers
+	for w := range 4 {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			for i := range 250 {
+				r.Push(w*1000 + i)
+			}
+		}()
+	}
+
+	// Readers
+	for range 4 {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			for range 250 {
+				r.Slice()
+				r.Len()
+				r.Peek()
+				r.Full()
+			}
+		}()
+	}
+
+	for range 8 {
+		<-done
+	}
+
+	if r.Len() != 100 {
+		t.Fatalf("expected len 100, got %d", r.Len())
+	}
+}
+
 func sliceEqual[T comparable](a, b []T) bool {
 	if len(a) != len(b) {
 		return false
