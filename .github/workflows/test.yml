@@ -1,0 +1,54 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+
+  contrib-llm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: contrib/llm/go.mod
+      - run: go vet ./...
+        working-directory: contrib/llm
+      - run: go test -race -count=1 ./...
+        working-directory: contrib/llm
+
+  contrib-otel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: contrib/otel/go.mod
+      - run: go vet ./...
+        working-directory: contrib/otel
+      - run: go test -race -count=1 ./...
+        working-directory: contrib/otel
+
+  contrib-river-outbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: contrib/river/outbox/go.mod
+      - run: go vet ./...
+        working-directory: contrib/river/outbox
+      - run: go test -race -count=1 ./...
+        working-directory: contrib/river/outbox
