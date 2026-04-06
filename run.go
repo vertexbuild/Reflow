@@ -96,6 +96,14 @@ func (r *retryNode[I, O]) Run(ctx context.Context, in Envelope[I]) (Envelope[O],
 		}
 		trace = append(trace, Step{Phase: "settle", Status: settleStatus(done)})
 
+		// Capture steps added during this iteration (tool calls from Act, etc.).
+		// Act typically carries in.Meta.Trace forward via Map, then appends tool
+		// steps with WithStep. Anything beyond the input baseline is new.
+		baseline := len(in.Meta.Trace)
+		if len(settled.Meta.Trace) > baseline {
+			trace = append(trace, settled.Meta.Trace[baseline:]...)
+		}
+
 		if done {
 			settled.Meta.Trace = append(cloneTrace(in.Meta.Trace), trace...)
 			return settled, nil

@@ -218,6 +218,38 @@ func TestRunTraceAccumulatesAcrossRetries(t *testing.T) {
 	}
 }
 
+func TestWithRetryPreservesToolSteps(t *testing.T) {
+	iteration := 0
+	node := WithRetry(&Func[int, int]{
+		ActFn: func(_ context.Context, in Envelope[int]) (Envelope[int], error) {
+			iteration++
+			// Simulate a tool call that adds a trace step (like reflow.Use does).
+			out := in.CarryMeta(in.Value)
+			out = out.WithStep(Step{Node: "my.tool", Phase: "tool", Status: "ok"})
+			return out, nil
+		},
+		SettleFn: func(_ context.Context, _ Envelope[int], out Envelope[int], _ error) (Envelope[int], bool, error) {
+			return out, iteration >= 2, nil
+		},
+	}, 3)
+
+	out, err := Run(context.Background(), node, NewEnvelope(0))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should have: 2 iterations × (resolve + settle + tool) = 6 steps
+	toolSteps := 0
+	for _, s := range out.Meta.Trace {
+		if s.Phase == "tool" {
+			toolSteps++
+		}
+	}
+	if toolSteps != 2 {
+		t.Fatalf("expected 2 tool steps from 2 iterations, got %d; trace: %+v", toolSteps, out.Meta.Trace)
+	}
+}
+
 func TestRunTraceDoesNotCorruptInput(t *testing.T) {
 	in := NewEnvelope(1)
 	// Pre-populate some trace to create a backing array with potential capacity
