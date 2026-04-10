@@ -9,14 +9,36 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: [".", "llm", "otel", "river/outbox"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: ${{ matrix.module }}/go.mod
+      - run: go vet ./...
+        working-directory: ${{ matrix.module }}
       - run: go test -race -count=1 ./...
+        working-directory: ${{ matrix.module }}
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag extension modules
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          for mod in otel llm river/outbox; do
+            TAG="${mod}/${VERSION}"
+            git tag "${TAG}"
+          done
+          git push origin --tags
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
