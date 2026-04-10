@@ -54,7 +54,7 @@ type metaJSON struct {
 }
 
 func metaToJSON(m reflow.Meta) metaJSON {
-	return metaJSON{Hints: m.Hints, Trace: m.Trace, Tags: m.Tags}
+	return metaJSON{Hints: m.Hints.Slice(), Trace: m.Trace.Slice(), Tags: m.Tags}
 }
 
 func metaFromJSON(m metaJSON) reflow.Meta {
@@ -62,7 +62,7 @@ func metaFromJSON(m metaJSON) reflow.Meta {
 	if tags == nil {
 		tags = make(map[string]string)
 	}
-	return reflow.Meta{Hints: m.Hints, Trace: m.Trace, Tags: tags}
+	return reflow.Meta{Hints: reflow.LogFrom(m.Hints), Trace: reflow.LogFrom(m.Trace), Tags: tags}
 }
 
 // Enqueue marshals an envelope and inserts it as a River job within tx.
