@@ -18,14 +18,18 @@ func sumMerge(results []Envelope[int]) Envelope[int] {
 	sum := 0
 	var meta Meta
 	meta.Tags = make(map[string]string)
+	var allHints []Hint
+	var allTrace []Step
 	for _, r := range results {
 		sum += r.Value
-		meta.Hints = append(meta.Hints, r.Meta.Hints...)
-		meta.Trace = append(meta.Trace, r.Meta.Trace...)
+		allHints = append(allHints, r.Meta.Hints.Slice()...)
+		allTrace = append(allTrace, r.Meta.Trace.Slice()...)
 		for k, v := range r.Meta.Tags {
 			meta.Tags[k] = v
 		}
 	}
+	meta.Hints = LogFrom(allHints)
+	meta.Trace = LogFrom(allTrace)
 	return Envelope[int]{Value: sum, Meta: meta}
 }
 
@@ -33,14 +37,18 @@ func concatMerge(results []Envelope[string]) Envelope[string] {
 	var parts []string
 	var meta Meta
 	meta.Tags = make(map[string]string)
+	var allHints []Hint
+	var allTrace []Step
 	for _, r := range results {
 		parts = append(parts, r.Value)
-		meta.Hints = append(meta.Hints, r.Meta.Hints...)
-		meta.Trace = append(meta.Trace, r.Meta.Trace...)
+		allHints = append(allHints, r.Meta.Hints.Slice()...)
+		allTrace = append(allTrace, r.Meta.Trace.Slice()...)
 		for k, v := range r.Meta.Tags {
 			meta.Tags[k] = v
 		}
 	}
+	meta.Hints = LogFrom(allHints)
+	meta.Trace = LogFrom(allTrace)
 	return Envelope[string]{Value: strings.Join(parts, ","), Meta: meta}
 }
 
@@ -275,8 +283,8 @@ func TestForkJoinMergesHints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(out.Meta.Hints) < 2 {
-		t.Fatalf("expected at least 2 hints, got %d", len(out.Meta.Hints))
+	if out.Meta.Hints.Len() < 2 {
+		t.Fatalf("expected at least 2 hints, got %d", out.Meta.Hints.Len())
 	}
 	aHints := out.HintsByCode("source.a")
 	bHints := out.HintsByCode("source.b")
@@ -320,8 +328,8 @@ func TestForkJoinMergesTrace(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Each branch produces resolve+settle trace steps; merge collects all
-	if len(out.Meta.Trace) < 4 {
-		t.Fatalf("expected at least 4 trace steps (2 per branch), got %d", len(out.Meta.Trace))
+	if out.Meta.Trace.Len() < 4 {
+		t.Fatalf("expected at least 4 trace steps (2 per branch), got %d", out.Meta.Trace.Len())
 	}
 }
 
@@ -348,8 +356,7 @@ func TestForkJoinInputTagsReachBranches(t *testing.T) {
 func TestForkJoinTraceNoRace(t *testing.T) {
 	// Seed the input with trace that has extra capacity to expose shared backing array.
 	in := NewEnvelope(1)
-	in.Meta.Trace = make([]Step, 1, 10) // len=1, cap=10 — plenty of room to race
-	in.Meta.Trace[0] = Step{Phase: "setup", Status: "ok"}
+	in.Meta.Trace = LogFrom([]Step{{Phase: "setup", Status: "ok"}})
 
 	a := &Func[int, int]{ActFn: Pass(func(n int) int { return n + 1 })}
 	b := &Func[int, int]{ActFn: Pass(func(n int) int { return n + 2 })}
@@ -366,8 +373,8 @@ func TestForkJoinTraceNoRace(t *testing.T) {
 	}
 
 	// Original input trace must be untouched
-	if len(in.Meta.Trace) != 1 {
-		t.Fatalf("input trace was corrupted: expected 1 step, got %d", len(in.Meta.Trace))
+	if in.Meta.Trace.Len() != 1 {
+		t.Fatalf("input trace was corrupted: expected 1 step, got %d", in.Meta.Trace.Len())
 	}
 }
 
@@ -538,8 +545,8 @@ func TestPBTForkJoinHintCount(t *testing.T) {
 		}
 		// Each branch adds 1 hint, merge collects all
 		// (trace-generated hints may also exist, so check >= n)
-		if len(out.Meta.Hints) < n {
-			t.Fatalf("expected at least %d hints, got %d", n, len(out.Meta.Hints))
+		if out.Meta.Hints.Len() < n {
+			t.Fatalf("expected at least %d hints, got %d", n, out.Meta.Hints.Len())
 		}
 	})
 }

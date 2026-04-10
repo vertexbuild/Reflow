@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vertexbuild/reflow"
+	"github.com/ploffredo/reflow"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -67,12 +67,12 @@ func TestExportCreatesSpans(t *testing.T) {
 	exp, inst := newTraceOnlyInst()
 
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Node: "parse", Phase: "resolve", Status: "ok", Duration: 10 * time.Millisecond},
 			{Node: "parse", Phase: "settle", Status: "ok", Duration: 5 * time.Millisecond},
 			{Node: "ollama.chat", Phase: "tool", Status: "ok", Duration: 200 * time.Millisecond},
 			{Node: "classify", Phase: "settle", Status: "ok", Duration: 2 * time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{"env": "test"},
 	}
 
@@ -94,9 +94,9 @@ func TestExportErrorStatus(t *testing.T) {
 	exp, inst := newTraceOnlyInst()
 
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Node: "api", Phase: "tool", Status: "connection refused", Duration: 50 * time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{},
 	}
 
@@ -117,9 +117,9 @@ func TestExportTagsAsAttributes(t *testing.T) {
 	exp, inst := newTraceOnlyInst()
 
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Phase: "resolve", Status: "ok", Duration: time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{"env": "prod", "version": "1.2"},
 	}
 
@@ -146,13 +146,13 @@ func TestExportHintEvent(t *testing.T) {
 	exp, inst := newTraceOnlyInst()
 
 	meta := reflow.Meta{
-		Hints: []reflow.Hint{
+		Hints: reflow.LogFrom([]reflow.Hint{
 			{Code: "a", Message: "one"},
 			{Code: "b", Message: "two"},
-		},
-		Trace: []reflow.Step{
+		}),
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Phase: "resolve", Status: "ok", Duration: time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{},
 	}
 
@@ -182,9 +182,9 @@ func TestExportPhaseOnlySpanName(t *testing.T) {
 	exp, inst := newTraceOnlyInst()
 
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Phase: "resolve", Status: "ok", Duration: time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{},
 	}
 
@@ -268,7 +268,7 @@ func TestRunBackfillsNodeName(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	for _, step := range out.Meta.Trace {
+	for _, step := range out.Meta.Trace.Slice() {
 		if step.Node == "" {
 			t.Fatalf("expected Node to be backfilled, got empty for phase %q", step.Phase)
 		}
@@ -470,11 +470,11 @@ func TestExportRecordsStepMetrics(t *testing.T) {
 	_, reader, inst := newFullInst()
 
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Node: "parse", Phase: "resolve", Status: "ok", Duration: 10 * time.Millisecond},
 			{Node: "parse", Phase: "settle", Status: "ok", Duration: 5 * time.Millisecond},
 			{Node: "ollama.chat", Phase: "tool", Status: "ok", Duration: 200 * time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{},
 	}
 
@@ -502,12 +502,12 @@ func TestExportRecordsRetryMetric(t *testing.T) {
 	_, reader, inst := newFullInst()
 
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Node: "classify", Phase: "resolve", Status: "ok", Duration: time.Millisecond},
 			{Node: "classify", Phase: "settle", Status: "retry", Duration: time.Millisecond},
 			{Node: "classify", Phase: "resolve", Status: "ok", Duration: time.Millisecond},
 			{Node: "classify", Phase: "settle", Status: "ok", Duration: time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{},
 	}
 
@@ -532,14 +532,14 @@ func TestExportRecordsHintMetrics(t *testing.T) {
 	_, reader, inst := newFullInst()
 
 	meta := reflow.Meta{
-		Hints: []reflow.Hint{
+		Hints: reflow.LogFrom([]reflow.Hint{
 			{Code: "json.malformed", Message: "bad input"},
 			{Code: "json.malformed", Message: "another bad input"},
 			{Code: "timeout", Message: "too slow"},
-		},
-		Trace: []reflow.Step{
+		}),
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Phase: "resolve", Status: "ok", Duration: time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{},
 	}
 
@@ -616,9 +616,9 @@ func TestAllowedTagsFiltering(t *testing.T) {
 	_, reader, inst := newFullInst("env")
 
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Node: "api", Phase: "tool", Status: "ok", Duration: 10 * time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{"env": "prod", "user_id": "123"},
 	}
 
@@ -662,9 +662,9 @@ func TestTagFuncOverridesAllowlist(t *testing.T) {
 	)
 
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Node: "api", Phase: "tool", Status: "ok", Duration: 10 * time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{"env": "staging"},
 	}
 
@@ -743,9 +743,9 @@ func TestWrapToolAndExportDuplicateToolMetrics(t *testing.T) {
 
 	// Export a trace that also contains this tool call (Export records metrics).
 	meta := reflow.Meta{
-		Trace: []reflow.Step{
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Node: "strlen", Phase: "tool", Status: "ok", Duration: 10 * time.Millisecond},
-		},
+		}),
 		Tags: map[string]string{},
 	}
 	inst.Export(context.Background(), "pipeline", meta)

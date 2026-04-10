@@ -160,14 +160,14 @@ func TestRunTraceRecording(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(out.Meta.Trace) < 2 {
-		t.Fatalf("expected at least 2 trace steps, got %d", len(out.Meta.Trace))
+	if out.Meta.Trace.Len() < 2 {
+		t.Fatalf("expected at least 2 trace steps, got %d", out.Meta.Trace.Len())
 	}
-	if out.Meta.Trace[0].Phase != "resolve" {
-		t.Fatalf("expected resolve trace, got %+v", out.Meta.Trace[0])
+	if out.Meta.Trace.Slice()[0].Phase != "resolve" {
+		t.Fatalf("expected resolve trace, got %+v", out.Meta.Trace.Slice()[0])
 	}
-	if out.Meta.Trace[1].Phase != "settle" {
-		t.Fatalf("expected settle trace, got %+v", out.Meta.Trace[1])
+	if out.Meta.Trace.Slice()[1].Phase != "settle" {
+		t.Fatalf("expected settle trace, got %+v", out.Meta.Trace.Slice()[1])
 	}
 }
 
@@ -181,11 +181,11 @@ func TestRunTraceRecordsPhases(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Single pass records resolve + settle
-	if len(out.Meta.Trace) < 2 {
-		t.Fatalf("expected at least 2 trace steps, got %d", len(out.Meta.Trace))
+	if out.Meta.Trace.Len() < 2 {
+		t.Fatalf("expected at least 2 trace steps, got %d", out.Meta.Trace.Len())
 	}
 	hasResolve, hasSettle := false, false
-	for _, s := range out.Meta.Trace {
+	for _, s := range out.Meta.Trace.Slice() {
 		if s.Phase == "resolve" {
 			hasResolve = true
 		}
@@ -194,7 +194,7 @@ func TestRunTraceRecordsPhases(t *testing.T) {
 		}
 	}
 	if !hasResolve || !hasSettle {
-		t.Fatalf("expected resolve and settle in trace, got %+v", out.Meta.Trace)
+		t.Fatalf("expected resolve and settle in trace, got %+v", out.Meta.Trace.Slice())
 	}
 }
 
@@ -213,8 +213,8 @@ func TestRunTraceAccumulatesAcrossRetries(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// 3 iterations × 2 trace steps (resolve + settle) = 6
-	if len(out.Meta.Trace) != 6 {
-		t.Fatalf("expected 6 trace steps for 3 iterations, got %d: %+v", len(out.Meta.Trace), out.Meta.Trace)
+	if out.Meta.Trace.Len() != 6 {
+		t.Fatalf("expected 6 trace steps for 3 iterations, got %d: %+v", out.Meta.Trace.Len(), out.Meta.Trace.Slice())
 	}
 }
 
@@ -240,20 +240,20 @@ func TestWithRetryPreservesToolSteps(t *testing.T) {
 
 	// Should have: 2 iterations × (resolve + settle + tool) = 6 steps
 	toolSteps := 0
-	for _, s := range out.Meta.Trace {
+	for _, s := range out.Meta.Trace.Slice() {
 		if s.Phase == "tool" {
 			toolSteps++
 		}
 	}
 	if toolSteps != 2 {
-		t.Fatalf("expected 2 tool steps from 2 iterations, got %d; trace: %+v", toolSteps, out.Meta.Trace)
+		t.Fatalf("expected 2 tool steps from 2 iterations, got %d; trace: %+v", toolSteps, out.Meta.Trace.Slice())
 	}
 }
 
 func TestRunTraceDoesNotCorruptInput(t *testing.T) {
 	in := NewEnvelope(1)
 	// Pre-populate some trace to create a backing array with potential capacity
-	in.Meta.Trace = append(in.Meta.Trace, Step{Phase: "prior", Status: "ok"})
+	in.Meta.Trace = in.Meta.Trace.append(Step{Phase: "prior", Status: "ok"})
 
 	node := &Func[int, int]{ActFn: Pass(func(n int) int { return n })}
 	_, err := Run(context.Background(), node, in)
@@ -262,11 +262,11 @@ func TestRunTraceDoesNotCorruptInput(t *testing.T) {
 	}
 
 	// The original input trace should be untouched
-	if len(in.Meta.Trace) != 1 {
-		t.Fatalf("input trace was corrupted: expected 1 step, got %d: %+v", len(in.Meta.Trace), in.Meta.Trace)
+	if in.Meta.Trace.Len() != 1 {
+		t.Fatalf("input trace was corrupted: expected 1 step, got %d: %+v", in.Meta.Trace.Len(), in.Meta.Trace.Slice())
 	}
-	if in.Meta.Trace[0].Phase != "prior" {
-		t.Fatalf("input trace was corrupted: expected 'prior', got %+v", in.Meta.Trace[0])
+	if in.Meta.Trace.Slice()[0].Phase != "prior" {
+		t.Fatalf("input trace was corrupted: expected 'prior', got %+v", in.Meta.Trace.Slice()[0])
 	}
 }
 
@@ -464,7 +464,7 @@ func TestPBTHintAccumulation(t *testing.T) {
 		node := WithRetry(&Func[int, int]{
 			ActFn: Pass(func(n int) int { return n }),
 			SettleFn: func(_ context.Context, in Envelope[int], out Envelope[int], _ error) (Envelope[int], bool, error) {
-				out = out.WithHint("iter", fmt.Sprintf("%d", len(in.Meta.Hints)), "")
+				out = out.WithHint("iter", fmt.Sprintf("%d", in.Meta.Hints.Len()), "")
 				return out, false, nil
 			},
 		}, maxIter)

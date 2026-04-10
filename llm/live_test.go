@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vertexbuild/reflow"
-	"github.com/vertexbuild/reflow/llm"
-	"github.com/vertexbuild/reflow/llm/ollama"
+	"github.com/ploffredo/reflow"
+	"github.com/ploffredo/reflow/llm"
+	"github.com/ploffredo/reflow/llm/ollama"
 )
 
 const liveModel = "llama3.2"
@@ -100,7 +100,7 @@ func TestLiveClassification(t *testing.T) {
 			if out.Value.Category != tt.expected {
 				t.Logf("WARNING: expected %q, got %q", tt.expected, out.Value.Category)
 			}
-			if len(out.Meta.Trace) == 0 {
+			if out.Meta.Trace.Len() == 0 {
 				t.Error("expected trace entries")
 			}
 		})
@@ -128,7 +128,7 @@ func (r LLMRepairJSON) Act(ctx context.Context, in reflow.Envelope[JSON]) (reflo
 		return in, fmt.Errorf("no original input")
 	}
 	var hintLines []string
-	for _, h := range in.Meta.Hints {
+	for _, h := range in.Meta.Hints.Slice() {
 		hintLines = append(hintLines, fmt.Sprintf("- %s: %s", h.Code, h.Message))
 	}
 	resp, err := llm.Chat(ctx, r.LLM,
@@ -188,8 +188,8 @@ func TestLiveJSONRepair(t *testing.T) {
 			}
 			t.Logf("input:  %s", input)
 			t.Logf("output: %v", out.Value)
-			t.Logf("hints:  %d", len(out.Meta.Hints))
-			for _, h := range out.Meta.Hints {
+			t.Logf("hints:  %d", out.Meta.Hints.Len())
+			for _, h := range out.Meta.Hints.Slice() {
 				t.Logf("  [%s] %s", h.Code, h.Message)
 			}
 			if out.Value == nil {
@@ -284,7 +284,7 @@ func TestLiveChainWithSettleLoop(t *testing.T) {
 			}
 			t.Logf("ticket:   %s", ticket)
 			t.Logf("response: %s", out.Value)
-			t.Logf("trace:    %d steps", len(out.Meta.Trace))
+			t.Logf("trace:    %d steps", out.Meta.Trace.Len())
 		})
 	}
 }

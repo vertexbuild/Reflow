@@ -197,8 +197,8 @@ func TestChainTraceAccumulates(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Each node produces resolve + settle = 2 trace steps. Two nodes = 4 minimum.
-	if len(out.Meta.Trace) < 4 {
-		t.Fatalf("expected at least 4 trace steps, got %d", len(out.Meta.Trace))
+	if out.Meta.Trace.Len() < 4 {
+		t.Fatalf("expected at least 4 trace steps, got %d", out.Meta.Trace.Len())
 	}
 }
 

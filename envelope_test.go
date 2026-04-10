@@ -16,10 +16,10 @@ func TestNewEnvelope(t *testing.T) {
 	if e.Meta.Tags == nil {
 		t.Fatal("expected non-nil tags map")
 	}
-	if len(e.Meta.Hints) != 0 {
+	if e.Meta.Hints.Len() != 0 {
 		t.Fatal("expected no hints")
 	}
-	if len(e.Meta.Trace) != 0 {
+	if e.Meta.Trace.Len() != 0 {
 		t.Fatal("expected no trace")
 	}
 }
@@ -45,14 +45,14 @@ func TestEnvelopeWithHint(t *testing.T) {
 	e := NewEnvelope("x").
 		WithHint("a", "msg-a", "span-a").
 		WithHint("b", "msg-b", "")
-	if len(e.Meta.Hints) != 2 {
-		t.Fatalf("expected 2 hints, got %d", len(e.Meta.Hints))
+	if e.Meta.Hints.Len() != 2 {
+		t.Fatalf("expected 2 hints, got %d", e.Meta.Hints.Len())
 	}
-	if e.Meta.Hints[0].Code != "a" {
-		t.Fatalf("expected hint code 'a', got %q", e.Meta.Hints[0].Code)
+	if e.Meta.Hints.Slice()[0].Code != "a" {
+		t.Fatalf("expected hint code 'a', got %q", e.Meta.Hints.Slice()[0].Code)
 	}
-	if e.Meta.Hints[0].Span != "span-a" {
-		t.Fatalf("expected span 'span-a', got %q", e.Meta.Hints[0].Span)
+	if e.Meta.Hints.Slice()[0].Span != "span-a" {
+		t.Fatalf("expected span 'span-a', got %q", e.Meta.Hints.Slice()[0].Span)
 	}
 }
 
@@ -82,8 +82,8 @@ func TestWithHintImmutable(t *testing.T) {
 	original := NewEnvelope("x").WithHint("a", "one", "")
 	_ = original.WithHint("b", "two", "")
 
-	if len(original.Meta.Hints) != 1 {
-		t.Fatalf("original should still have 1 hint, got %d", len(original.Meta.Hints))
+	if original.Meta.Hints.Len() != 1 {
+		t.Fatalf("original should still have 1 hint, got %d", original.Meta.Hints.Len())
 	}
 }
 
@@ -126,7 +126,7 @@ func TestCarryMeta(t *testing.T) {
 	if carried.Value != "new-value" {
 		t.Fatalf("expected 'new-value', got %q", carried.Value)
 	}
-	if len(carried.Meta.Hints) != 1 || carried.Meta.Hints[0].Code != "h" {
+	if carried.Meta.Hints.Len() != 1 || carried.Meta.Hints.Slice()[0].Code != "h" {
 		t.Fatal("hints should be carried")
 	}
 	if carried.Meta.Tags["k"] != "v" {
@@ -136,11 +136,11 @@ func TestCarryMeta(t *testing.T) {
 
 func TestCarryMetaPreservesTrace(t *testing.T) {
 	e := NewEnvelope(1)
-	e.Meta.Trace = append(e.Meta.Trace, Step{Phase: "resolve", Status: "ok"})
+	e.Meta.Trace = e.Meta.Trace.append(Step{Phase: "resolve", Status: "ok"})
 
 	carried := e.CarryMeta(2)
-	if len(carried.Meta.Trace) != 1 {
-		t.Fatalf("expected 1 trace step, got %d", len(carried.Meta.Trace))
+	if carried.Meta.Trace.Len() != 1 {
+		t.Fatalf("expected 1 trace step, got %d", carried.Meta.Trace.Len())
 	}
 }
 
@@ -150,19 +150,19 @@ func TestMapCrossType(t *testing.T) {
 	in := NewEnvelope("hello").
 		WithHint("h", "msg", "span").
 		WithTag("k", "v")
-	in.Meta.Trace = append(in.Meta.Trace, Step{Phase: "resolve", Status: "ok"})
+	in.Meta.Trace = in.Meta.Trace.append(Step{Phase: "resolve", Status: "ok"})
 
 	out := Map(in, 42)
 	if out.Value != 42 {
 		t.Fatalf("expected 42, got %d", out.Value)
 	}
-	if len(out.Meta.Hints) != 1 || out.Meta.Hints[0].Code != "h" {
+	if out.Meta.Hints.Len() != 1 || out.Meta.Hints.Slice()[0].Code != "h" {
 		t.Fatal("hints should be carried")
 	}
 	if out.Meta.Tags["k"] != "v" {
 		t.Fatal("tags should be carried")
 	}
-	if len(out.Meta.Trace) != 1 {
+	if out.Meta.Trace.Len() != 1 {
 		t.Fatal("trace should be carried")
 	}
 }
@@ -188,7 +188,7 @@ func TestMapStructToStruct(t *testing.T) {
 	if out.Value.Count != 5 {
 		t.Fatalf("expected 5, got %d", out.Value.Count)
 	}
-	if len(out.Meta.Hints) != 1 {
+	if out.Meta.Hints.Len() != 1 {
 		t.Fatal("hints should be carried across struct types")
 	}
 }
@@ -214,8 +214,8 @@ func TestPBTHintImmutability(t *testing.T) {
 		e := NewEnvelope("x")
 		for i := range n {
 			e = e.WithHint("code", rapid.String().Draw(t, "msg"), "")
-			if len(e.Meta.Hints) != i+1 {
-				t.Fatalf("expected %d hints after %d WithHint calls, got %d", i+1, i+1, len(e.Meta.Hints))
+			if e.Meta.Hints.Len() != i+1 {
+				t.Fatalf("expected %d hints after %d WithHint calls, got %d", i+1, i+1, e.Meta.Hints.Len())
 			}
 		}
 	})

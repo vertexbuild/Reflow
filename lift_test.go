@@ -162,7 +162,7 @@ func TestPassCarriesMeta(t *testing.T) {
 	if out.Meta.Tags["a"] != "1" {
 		t.Fatal("expected tag preserved")
 	}
-	if len(out.Meta.Hints) != 1 || out.Meta.Hints[0].Code != "h" {
+	if out.Meta.Hints.Len() != 1 || out.Meta.Hints.Slice()[0].Code != "h" {
 		t.Fatal("expected hint preserved")
 	}
 }

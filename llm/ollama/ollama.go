@@ -12,7 +12,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/vertexbuild/reflow/llm"
+	"github.com/ploffredo/reflow/llm"
 )
 
 // Provider calls an Ollama instance for chat completion.

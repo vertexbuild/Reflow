@@ -91,11 +91,11 @@ func TestUseWithStep(t *testing.T) {
 	_, step, _ := Use(context.Background(), tool, "test")
 	env = env.WithStep(step)
 
-	if len(env.Meta.Trace) != 1 {
-		t.Fatalf("expected 1 trace step, got %d", len(env.Meta.Trace))
+	if env.Meta.Trace.Len() != 1 {
+		t.Fatalf("expected 1 trace step, got %d", env.Meta.Trace.Len())
 	}
-	if env.Meta.Trace[0].Node != "lookup" {
-		t.Fatalf("expected node 'lookup', got %q", env.Meta.Trace[0].Node)
+	if env.Meta.Trace.Slice()[0].Node != "lookup" {
+		t.Fatalf("expected node 'lookup', got %q", env.Meta.Trace.Slice()[0].Node)
 	}
 }
 
@@ -229,7 +229,7 @@ func TestUseInPipeline(t *testing.T) {
 	}
 
 	toolSteps := 0
-	for _, s := range out.Meta.Trace {
+	for _, s := range out.Meta.Trace.Slice() {
 		if s.Phase == "tool" && s.Node == "fetch" {
 			toolSteps++
 		}
@@ -316,11 +316,11 @@ func TestInvokeWithStep(t *testing.T) {
 	})
 	env = env.WithStep(step)
 
-	if len(env.Meta.Trace) != 1 {
-		t.Fatalf("expected 1 trace step, got %d", len(env.Meta.Trace))
+	if env.Meta.Trace.Len() != 1 {
+		t.Fatalf("expected 1 trace step, got %d", env.Meta.Trace.Len())
 	}
-	if env.Meta.Trace[0].Node != "parse" {
-		t.Fatalf("expected node 'parse', got %q", env.Meta.Trace[0].Node)
+	if env.Meta.Trace.Slice()[0].Node != "parse" {
+		t.Fatalf("expected node 'parse', got %q", env.Meta.Trace.Slice()[0].Node)
 	}
 }
 
@@ -338,10 +338,10 @@ func TestInvokeMultipleCallsAccumulate(t *testing.T) {
 	})
 	env = env.WithStep(s1, s2, s3)
 
-	if len(env.Meta.Trace) != 3 {
-		t.Fatalf("expected 3 trace steps, got %d", len(env.Meta.Trace))
+	if env.Meta.Trace.Len() != 3 {
+		t.Fatalf("expected 3 trace steps, got %d", env.Meta.Trace.Len())
 	}
-	names := []string{env.Meta.Trace[0].Node, env.Meta.Trace[1].Node, env.Meta.Trace[2].Node}
+	names := []string{env.Meta.Trace.Slice()[0].Node, env.Meta.Trace.Slice()[1].Node, env.Meta.Trace.Slice()[2].Node}
 	if names[0] != "fetch" || names[1] != "parse" || names[2] != "validate" {
 		t.Fatalf("unexpected trace nodes: %v", names)
 	}
@@ -498,14 +498,14 @@ func TestTryWithStepIntegration(t *testing.T) {
 	if result != "done" {
 		t.Fatalf("expected 'done', got %q", result)
 	}
-	if len(env.Meta.Trace) != 2 {
-		t.Fatalf("expected 2 trace steps, got %d", len(env.Meta.Trace))
+	if env.Meta.Trace.Len() != 2 {
+		t.Fatalf("expected 2 trace steps, got %d", env.Meta.Trace.Len())
 	}
 	// First should be failure, second success
-	if env.Meta.Trace[0].Status == "ok" {
+	if env.Meta.Trace.Slice()[0].Status == "ok" {
 		t.Fatal("first attempt should have failed")
 	}
-	if env.Meta.Trace[1].Status != "ok" {
+	if env.Meta.Trace.Slice()[1].Status != "ok" {
 		t.Fatal("second attempt should have succeeded")
 	}
 }
@@ -542,7 +542,7 @@ func TestInvokeInNamedNode(t *testing.T) {
 
 	// Should have: resolve + tool + settle in trace
 	toolSteps := 0
-	for _, s := range out.Meta.Trace {
+	for _, s := range out.Meta.Trace.Slice() {
 		if s.Phase == "tool" {
 			toolSteps++
 			if s.Node != "http.get" {
@@ -585,7 +585,7 @@ func TestInvokeInPipeline(t *testing.T) {
 
 	// Count tool steps
 	toolSteps := 0
-	for _, s := range out.Meta.Trace {
+	for _, s := range out.Meta.Trace.Slice() {
 		if s.Phase == "tool" {
 			toolSteps++
 		}

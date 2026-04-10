@@ -32,7 +32,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
-	"github.com/vertexbuild/reflow"
+	"github.com/ploffredo/reflow"
 )
 
 // Args is the River job argument for all reflow outbox jobs.

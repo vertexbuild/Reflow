@@ -1,12 +1,12 @@
-module github.com/vertexbuild/reflow/river/outbox
+module github.com/ploffredo/reflow/river/outbox
 
-go 1.25.1
+go 1.26.2
 
 require (
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/riverqueue/river v0.18.0
 	github.com/riverqueue/river/rivertype v0.18.0
-	github.com/vertexbuild/reflow v0.2.0
+	github.com/ploffredo/reflow v0.2.0
 )
 
 require (
@@ -30,4 +30,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/vertexbuild/reflow => ../..
+replace github.com/ploffredo/reflow => ../..

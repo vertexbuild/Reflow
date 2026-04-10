@@ -196,8 +196,8 @@ func TestPBTPipelineAccumulatesHints(t *testing.T) {
 			t.Fatalf("error: %v", err)
 		}
 
-		if len(out.Meta.Hints) != n {
-			t.Fatalf("expected %d hints, got %d", n, len(out.Meta.Hints))
+		if out.Meta.Hints.Len() != n {
+			t.Fatalf("expected %d hints, got %d", n, out.Meta.Hints.Len())
 		}
 	})
 }

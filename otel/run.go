@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/vertexbuild/reflow"
+	"github.com/ploffredo/reflow"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -34,24 +34,27 @@ func Run[I, O any](
 	elapsed := time.Since(start)
 
 	// Backfill empty Node fields on framework-generated steps.
-	for i := range out.Meta.Trace {
-		if out.Meta.Trace[i].Node == "" {
-			out.Meta.Trace[i].Node = name
+	// Materializes the trace, modifies in place, rebuilds.
+	steps := out.Meta.Trace.Slice()
+	for i := range steps {
+		if steps[i].Node == "" {
+			steps[i].Node = name
 		}
 	}
+	out.Meta.Trace = reflow.LogFrom(steps)
 
 	// Tag attributes on parent span.
 	for k, v := range out.Meta.Tags {
 		span.SetAttributes(attribute.String("reflow.tag."+k, v))
 	}
-	if len(out.Meta.Hints) > 0 {
+	if out.Meta.Hints.Len() > 0 {
 		span.AddEvent("reflow.hints",
-			trace.WithAttributes(attribute.Int("reflow.hint.count", len(out.Meta.Hints))),
+			trace.WithAttributes(attribute.Int("reflow.hint.count", out.Meta.Hints.Len())),
 		)
 	}
 
 	// Child spans for each step.
-	for _, step := range out.Meta.Trace {
+	for _, step := range steps {
 		stepName := step.Node
 		if stepName == "" {
 			stepName = step.Phase

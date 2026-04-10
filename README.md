@@ -3,7 +3,7 @@
 Typed workflow graphs for Go — deterministic pipelines, streaming fan-outs, or agentic compositions with structured handoffs.
 
 ```
-go get github.com/vertexbuild/reflow
+go get github.com/ploffredo/reflow
 ```
 
 Zero core dependencies. The entire public API fits on one screen.
@@ -272,9 +272,9 @@ The core module has zero external dependencies. Optional extensions are separate
 | [`reflow/river/outbox`](river/outbox) | Transactional outbox for durable pipelines backed by Postgres + River |
 
 ```
-go get github.com/vertexbuild/reflow/llm
-go get github.com/vertexbuild/reflow/otel
-go get github.com/vertexbuild/reflow/river/outbox
+go get github.com/ploffredo/reflow/llm
+go get github.com/ploffredo/reflow/otel
+go get github.com/ploffredo/reflow/river/outbox
 ```
 
 ---

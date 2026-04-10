@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/vertexbuild/reflow"
+	"github.com/ploffredo/reflow"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -140,8 +140,10 @@ func NewInstrumenter(tp trace.TracerProvider, opts ...Option) *Instrumenter {
 func (inst *Instrumenter) Export(ctx context.Context, name string, m reflow.Meta) {
 	now := time.Now()
 
+	steps := m.Trace.Slice()
+
 	var total time.Duration
-	for _, s := range m.Trace {
+	for _, s := range steps {
 		total += s.Duration
 	}
 
@@ -151,14 +153,14 @@ func (inst *Instrumenter) Export(ctx context.Context, name string, m reflow.Meta
 	for k, v := range m.Tags {
 		parent.SetAttributes(attribute.String("reflow.tag."+k, v))
 	}
-	if len(m.Hints) > 0 {
+	if m.Hints.Len() > 0 {
 		parent.AddEvent("reflow.hints",
-			trace.WithAttributes(attribute.Int("reflow.hint.count", len(m.Hints))),
+			trace.WithAttributes(attribute.Int("reflow.hint.count", m.Hints.Len())),
 		)
 	}
 
 	cursor := parentStart
-	for _, step := range m.Trace {
+	for _, step := range steps {
 		cursor = inst.createStepSpan(ctx, step, cursor)
 	}
 
@@ -171,7 +173,7 @@ func (inst *Instrumenter) Export(ctx context.Context, name string, m reflow.Meta
 // recordTraceMetrics walks a Meta's Trace and Hints, recording the
 // appropriate metrics for each entry.
 func (inst *Instrumenter) recordTraceMetrics(ctx context.Context, m reflow.Meta) {
-	for _, step := range m.Trace {
+	m.Trace.Each(func(step reflow.Step) {
 		if step.Phase == "tool" {
 			inst.recordTool(ctx, step.Node, step.Duration, step.Status, m.Tags)
 		} else {
@@ -180,8 +182,8 @@ func (inst *Instrumenter) recordTraceMetrics(ctx context.Context, m reflow.Meta)
 		if step.Status == "retry" {
 			inst.recordRetry(ctx, step.Node, m.Tags)
 		}
-	}
-	for _, h := range m.Hints {
+	})
+	m.Hints.Each(func(h reflow.Hint) {
 		inst.recordHint(ctx, h, m.Tags)
-	}
+	})
 }

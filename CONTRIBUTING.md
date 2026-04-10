@@ -5,7 +5,7 @@
 The repo uses [Go workspaces](https://go.dev/doc/tutorial/workspaces) so the core module and extension modules resolve to your local tree during development.
 
 ```
-git clone https://github.com/vertexbuild/reflow.git
+git clone https://github.com/ploffredo/reflow.git
 cd reflow
 go work init . ./llm ./otel ./river/outbox
 ```
@@ -29,7 +29,7 @@ Releases are two-phase because the Go module proxy needs to index the core modul
 make release VERSION=0.1.0
 
 # Wait for proxy.golang.org to index it:
-curl -s https://proxy.golang.org/github.com/vertexbuild/reflow/@v/v0.1.0.info
+curl -s https://proxy.golang.org/github.com/ploffredo/reflow/@v/v0.1.0.info
 
 # Phase 2: update and tag extension modules
 make release-contrib VERSION=0.1.0

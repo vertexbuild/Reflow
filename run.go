@@ -28,7 +28,7 @@ func runOnce[I, O any](ctx context.Context, n Node[I, O], in Envelope[I]) (Envel
 	if err != nil {
 		return Envelope[O]{}, fmt.Errorf("reflow: resolve: %w", err)
 	}
-	resolved.Meta.Trace = append(cloneTrace(resolved.Meta.Trace), Step{Phase: "resolve", Status: "ok"})
+	resolved.Meta.Trace = resolved.Meta.Trace.fork().append(Step{Phase: "resolve", Status: "ok"})
 
 	out, actErr := n.Act(ctx, resolved)
 
@@ -42,7 +42,7 @@ func runOnce[I, O any](ctx context.Context, n Node[I, O], in Envelope[I]) (Envel
 		}
 		return Envelope[O]{}, fmt.Errorf("reflow: did not settle")
 	}
-	settled.Meta.Trace = append(cloneTrace(settled.Meta.Trace), Step{Phase: "settle", Status: "ok"})
+	settled.Meta.Trace = settled.Meta.Trace.fork().append(Step{Phase: "settle", Status: "ok"})
 	return settled, nil
 }
 
@@ -80,7 +80,7 @@ func (r *retryNode[I, O]) Run(ctx context.Context, in Envelope[I]) (Envelope[O],
 	var trace []Step
 
 	for i := range r.maxIter {
-		priorHints := len(in.Meta.Hints)
+		priorHints := in.Meta.Hints.Len()
 
 		resolved, err := r.inner.Resolve(ctx, in)
 		if err != nil {
@@ -99,13 +99,13 @@ func (r *retryNode[I, O]) Run(ctx context.Context, in Envelope[I]) (Envelope[O],
 		// Capture steps added during this iteration (tool calls from Act, etc.).
 		// Act typically carries in.Meta.Trace forward via Map, then appends tool
 		// steps with WithStep. Anything beyond the input baseline is new.
-		baseline := len(in.Meta.Trace)
-		if len(settled.Meta.Trace) > baseline {
-			trace = append(trace, settled.Meta.Trace[baseline:]...)
+		baseline := in.Meta.Trace.Len()
+		if settled.Meta.Trace.Len() > baseline {
+			trace = append(trace, settled.Meta.Trace.Since(baseline)...)
 		}
 
 		if done {
-			settled.Meta.Trace = append(cloneTrace(in.Meta.Trace), trace...)
+			settled.Meta.Trace = in.Meta.Trace.fork().append(trace...)
 			return settled, nil
 		}
 
@@ -113,8 +113,8 @@ func (r *retryNode[I, O]) Run(ctx context.Context, in Envelope[I]) (Envelope[O],
 		// Hints flow through Resolve → Act → Settle via meta propagation,
 		// so settled.Meta.Hints[:priorHints] are the input hints carried forward.
 		// Everything beyond that was added by this iteration's phases.
-		if len(settled.Meta.Hints) > priorHints {
-			in.Meta.Hints = append(in.Meta.Hints, settled.Meta.Hints[priorHints:]...)
+		if settled.Meta.Hints.Len() > priorHints {
+			in.Meta.Hints = in.Meta.Hints.append(settled.Meta.Hints.Since(priorHints)...)
 		}
 	}
 	return Envelope[O]{}, fmt.Errorf("reflow: did not settle after %d iterations", r.maxIter)

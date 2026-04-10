@@ -1,9 +1,9 @@
-module github.com/vertexbuild/reflow/otel
+module github.com/ploffredo/reflow/otel
 
-go 1.25.1
+go 1.26.2
 
 require (
-	github.com/vertexbuild/reflow v0.2.0
+	github.com/ploffredo/reflow v0.2.0
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/metric v1.42.0
 	go.opentelemetry.io/otel/sdk v1.42.0
@@ -20,4 +20,4 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 )
 
-replace github.com/vertexbuild/reflow => ..
+replace github.com/ploffredo/reflow => ..

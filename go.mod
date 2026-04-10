@@ -1,5 +1,5 @@
-module github.com/vertexbuild/reflow
+module github.com/ploffredo/reflow
 
-go 1.25.1
+go 1.26.2
 
 require pgregory.net/rapid v1.2.0

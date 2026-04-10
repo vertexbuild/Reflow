@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/vertexbuild/reflow"
+	"github.com/ploffredo/reflow"
 )
 
 // --- Serialization ---
@@ -68,21 +68,21 @@ func TestArgsRoundTrip(t *testing.T) {
 	if meta.Tags["source"] != "intake" {
 		t.Fatalf("expected tag 'source'='intake', got %q", meta.Tags["source"])
 	}
-	if len(meta.Hints) != 1 || meta.Hints[0].Code != "validation.pending" {
+	if meta.Hints.Len() != 1 || meta.Hints.Slice()[0].Code != "validation.pending" {
 		t.Fatalf("unexpected hints: %+v", meta.Hints)
 	}
 }
 
 func TestMetaRoundTrip(t *testing.T) {
 	original := reflow.Meta{
-		Hints: []reflow.Hint{
+		Hints: reflow.LogFrom([]reflow.Hint{
 			{Code: "a", Message: "one", Span: "x"},
 			{Code: "b", Message: "two", Span: ""},
-		},
-		Trace: []reflow.Step{
+		}),
+		Trace: reflow.LogFrom([]reflow.Step{
 			{Node: "parse", Phase: "resolve", Status: "ok"},
 			{Node: "ollama", Phase: "tool", Status: "ok"},
-		},
+		}),
 		Tags: map[string]string{"env": "prod", "ver": "1"},
 	}
 
@@ -98,11 +98,11 @@ func TestMetaRoundTrip(t *testing.T) {
 	}
 
 	meta := metaFromJSON(restored)
-	if len(meta.Hints) != 2 {
-		t.Fatalf("expected 2 hints, got %d", len(meta.Hints))
+	if meta.Hints.Len() != 2 {
+		t.Fatalf("expected 2 hints, got %d", meta.Hints.Len())
 	}
-	if len(meta.Trace) != 2 {
-		t.Fatalf("expected 2 trace steps, got %d", len(meta.Trace))
+	if meta.Trace.Len() != 2 {
+		t.Fatalf("expected 2 trace steps, got %d", meta.Trace.Len())
 	}
 	if meta.Tags["env"] != "prod" {
 		t.Fatalf("expected tag env=prod, got %q", meta.Tags["env"])
@@ -206,7 +206,7 @@ func TestRouterPreservesMeta(t *testing.T) {
 	Handle(router, "meta-test", &reflow.Func[string, string]{
 		ActFn: func(_ context.Context, in reflow.Envelope[string]) (reflow.Envelope[string], error) {
 			receivedTags = in.Meta.Tags
-			receivedHints = in.Meta.Hints
+			receivedHints = in.Meta.Hints.Slice()
 			return in, nil
 		},
 	})
@@ -214,7 +214,7 @@ func TestRouterPreservesMeta(t *testing.T) {
 	payload, _ := json.Marshal("data")
 	meta := reflow.Meta{
 		Tags:  map[string]string{"env": "test", "ver": "2"},
-		Hints: []reflow.Hint{{Code: "prior", Message: "from upstream", Span: ""}},
+		Hints: reflow.LogFrom([]reflow.Hint{{Code: "prior", Message: "from upstream", Span: ""}}),
 	}
 
 	err := router.handlers["meta-test"](context.Background(), payload, meta)

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/vertexbuild/reflow"
+	"github.com/ploffredo/reflow"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )

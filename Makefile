@@ -39,9 +39,9 @@ examples:
 release:
 	@test -n "$(VERSION)" || (echo "VERSION is required — usage: make release VERSION=0.1.0" && exit 1)
 	@echo "==> Preparing core v$(VERSION)"
-	cd llm && go mod edit -dropreplace=github.com/vertexbuild/reflow
-	cd otel && go mod edit -dropreplace=github.com/vertexbuild/reflow
-	cd river/outbox && go mod edit -dropreplace=github.com/vertexbuild/reflow
+	cd llm && go mod edit -dropreplace=github.com/ploffredo/reflow
+	cd otel && go mod edit -dropreplace=github.com/ploffredo/reflow
+	cd river/outbox && go mod edit -dropreplace=github.com/ploffredo/reflow
 	git add llm/go.mod otel/go.mod river/outbox/go.mod
 	git commit -m "Remove replace directives for v$(VERSION) release"
 	git tag v$(VERSION)
@@ -56,9 +56,9 @@ release:
 release-contrib:
 	@test -n "$(VERSION)" || (echo "VERSION is required — usage: make release-contrib VERSION=0.1.0" && exit 1)
 	@echo "==> Updating contrib modules to v$(VERSION)"
-	cd llm && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
-	cd otel && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
-	cd river/outbox && go mod edit -require=github.com/vertexbuild/reflow@v$(VERSION) && go mod tidy
+	cd llm && go mod edit -require=github.com/ploffredo/reflow@v$(VERSION) && go mod tidy
+	cd otel && go mod edit -require=github.com/ploffredo/reflow@v$(VERSION) && go mod tidy
+	cd river/outbox && go mod edit -require=github.com/ploffredo/reflow@v$(VERSION) && go mod tidy
 	git add llm/ otel/ river/
 	git commit -m "Update contrib modules to core v$(VERSION)"
 	git tag llm/v$(VERSION)
@@ -71,9 +71,9 @@ release-contrib:
 
 # Restore replace directives for continued local development.
 dev-restore:
-	cd llm && go mod edit -replace=github.com/vertexbuild/reflow=..
-	cd otel && go mod edit -replace=github.com/vertexbuild/reflow=..
-	cd river/outbox && go mod edit -replace=github.com/vertexbuild/reflow=../..
+	cd llm && go mod edit -replace=github.com/ploffredo/reflow=..
+	cd otel && go mod edit -replace=github.com/ploffredo/reflow=..
+	cd river/outbox && go mod edit -replace=github.com/ploffredo/reflow=../..
 	git add llm/go.mod otel/go.mod river/outbox/go.mod
 	git commit -m "Restore replace directives for development"
 	git push origin main

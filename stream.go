@@ -44,7 +44,7 @@ func Stream[I, O any](ctx context.Context, n StreamNode[I, O], in Envelope[I]) i
 			yield(Envelope[O]{}, fmt.Errorf("reflow: resolve: %w", err))
 			return
 		}
-		resolved.Meta.Trace = append(cloneTrace(resolved.Meta.Trace), Step{Phase: "resolve", Status: "ok"})
+		resolved.Meta.Trace = resolved.Meta.Trace.fork().append(Step{Phase: "resolve", Status: "ok"})
 
 		for out, actErr := range n.Act(ctx, resolved) {
 			settled, done, err := n.Settle(ctx, resolved, out, actErr)
@@ -55,7 +55,7 @@ func Stream[I, O any](ctx context.Context, n StreamNode[I, O], in Envelope[I]) i
 				continue
 			}
 
-			settled.Meta.Trace = append(cloneTrace(settled.Meta.Trace), Step{Phase: "settle", Status: settleStatus(done)})
+			settled.Meta.Trace = settled.Meta.Trace.fork().append(Step{Phase: "settle", Status: settleStatus(done)})
 
 			if done {
 				if !yield(settled, nil) {

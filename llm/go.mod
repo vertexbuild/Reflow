@@ -1,10 +1,10 @@
-module github.com/vertexbuild/reflow/llm
+module github.com/ploffredo/reflow/llm
 
-go 1.25.1
+go 1.26.2
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.27.1
-	github.com/vertexbuild/reflow v0.2.0
+	github.com/ploffredo/reflow v0.2.0
 )
 
 require (
@@ -16,4 +16,4 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 )
 
-replace github.com/vertexbuild/reflow => ..
+replace github.com/ploffredo/reflow => ..

@@ -292,7 +292,7 @@ func TestStreamTrace(t *testing.T) {
 	// Each item should have resolve + settle trace
 	for i, r := range results {
 		hasResolve, hasSettle := false, false
-		for _, s := range r.Meta.Trace {
+		for _, s := range r.Meta.Trace.Slice() {
 			if s.Phase == "resolve" {
 				hasResolve = true
 			}
@@ -301,7 +301,7 @@ func TestStreamTrace(t *testing.T) {
 			}
 		}
 		if !hasResolve || !hasSettle {
-			t.Fatalf("item %d missing trace phases: %+v", i, r.Meta.Trace)
+			t.Fatalf("item %d missing trace phases: %+v", i, r.Meta.Trace.Slice())
 		}
 	}
 }

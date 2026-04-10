@@ -13,8 +13,8 @@ type Envelope[T any] struct {
 // Meta holds structured context that accumulates as an envelope
 // moves through the graph.
 type Meta struct {
-	Hints []Hint
-	Trace []Step
+	Hints Log[Hint]
+	Trace Log[Step]
 	Tags  map[string]string
 }
 
@@ -48,7 +48,7 @@ func NewEnvelope[T any](v T) Envelope[T] {
 
 // WithHint returns a copy of the envelope with an additional hint.
 func (e Envelope[T]) WithHint(code, message, span string) Envelope[T] {
-	e.Meta.Hints = append(cloneHints(e.Meta.Hints), Hint{
+	e.Meta.Hints = e.Meta.Hints.fork().append(Hint{
 		Code:    code,
 		Message: message,
 		Span:    span,
@@ -70,11 +70,11 @@ func (e Envelope[T]) WithTag(key, value string) Envelope[T] {
 // HintsByCode returns all hints matching the given code.
 func (e Envelope[T]) HintsByCode(code string) []Hint {
 	var out []Hint
-	for _, h := range e.Meta.Hints {
+	e.Meta.Hints.Each(func(h Hint) {
 		if h.Code == code {
 			out = append(out, h)
 		}
-	}
+	})
 	return out
 }
 
@@ -86,7 +86,7 @@ func (e Envelope[T]) HintsByCode(code string) []Hint {
 //	})
 //	out = out.WithStep(step)
 func (e Envelope[T]) WithStep(steps ...Step) Envelope[T] {
-	e.Meta.Trace = append(cloneTrace(e.Meta.Trace), steps...)
+	e.Meta.Trace = e.Meta.Trace.fork().append(steps...)
 	return e
 }
 
@@ -106,20 +106,3 @@ func Map[I, O any](in Envelope[I], v O) Envelope[O] {
 	return Envelope[O]{Value: v, Meta: in.Meta}
 }
 
-func cloneHints(hints []Hint) []Hint {
-	if hints == nil {
-		return nil
-	}
-	out := make([]Hint, len(hints))
-	copy(out, hints)
-	return out
-}
-
-func cloneTrace(trace []Step) []Step {
-	if trace == nil {
-		return nil
-	}
-	out := make([]Step, len(trace))
-	copy(out, trace)
-	return out
-}
